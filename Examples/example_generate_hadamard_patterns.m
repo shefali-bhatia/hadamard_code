@@ -29,18 +29,18 @@
 % USE OR OTHER DEALINGS IN THE SOFTWARE.      
 %
 
-addpath(fullfile('..','Acquisition','DMD pattern generation'))
-addpath(fullfile('..','Analysis'))
-addpath(fullfile('..','Other software'))
-addpath(fullfile('..','Other software','Hadamard matrices'))
+% addpath(fullfile('..','Acquisition','DMD pattern generation'))
+% addpath(fullfile('..','Analysis'))
+% addpath(fullfile('..','Other software'))
+% addpath(fullfile('..','Other software','Hadamard matrices'))
 
 % Define number of orthogonal locations.
 % Usually as n = m - 1 with m a multiple of 4,
 % in any case, m>n patterns are generated, with m as low as possible.
 % The offset defines how orthogonal locations distribute in space; they
 % should be equidistant from each other to minimize scattering crosstalk
-% nlocations_and_offset = [11 3]; % [n offset]
-nlocations_and_offset = [19 5]; % [n offset]
+nlocations_and_offset = [11 3]; % [n offset]
+% nlocations_and_offset = [19 5]; % [n offset]
 % nlocations_and_offset = [27 6]; % [n offset]
 % nlocations_and_offset = [35 10]; % [n offset]
 % nlocations_and_offset = [59 09];  % [n offset]
@@ -53,7 +53,7 @@ binning = [1 1];
 patterns_logical = alp_btd_to_logical(hadamard_patterns_scramble_nopermutation(nlocations_and_offset,binning));
 
 % mask to limit illumination to a region of interest
-illum_mask = imread(fullfile('Illumination mask','0.png'))'; 
+illum_mask = imread(fullfile('Examples/Illumination mask','0.png'))'; 
 
 % Interleave with complement in 3rd dimension, store as vectorized movie
 toint = {... % to interleave matrices in 3d, place them in a cell to then use the permute-cell2mat-permute-reshape method

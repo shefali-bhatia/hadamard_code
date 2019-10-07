@@ -35,6 +35,7 @@ function [sv, uhad, uref, uu] = dyn_had(obj_data, cal_data, ncomps)
 %                   repetition of the patterns in cal_data, while even
 %                   frames should have been illuminated by their binary
 %                   complement.
+%                   EACH COL = pixels of image illuminated in frame
 %       cal_data:	Matrix of size [npix hlen] with the calibration
 %                   dataset, where hlen is the length of the hadamard code.
 %       ncomps:     Number of PCA components to represent the dataset. This
@@ -67,6 +68,8 @@ function [sv, uhad, uref, uu] = dyn_had(obj_data, cal_data, ncomps)
 %   2018 Vicente Parot
 %   Cohen Lab - Harvard University
 
+    
+
     mov_obj = vm(obj_data,[size(obj_data,1) 1]); % recast input matrix as vectorized movie with image dimensions [npix 1] (otherwise would need to know image dimensions, or require object inputs)
     hlen = size(cal_data,2); % hadamard code length
     interlen = hlen*2; % interleaved code length, double of hadamard length
@@ -84,14 +87,16 @@ function [sv, uhad, uref, uu] = dyn_had(obj_data, cal_data, ncomps)
     % correct high-speed periodic intensity fluctuations. input movie must
     % have length of integer multiple of the pattern sequence. mov_uni has
     % half the frames of the input movie.
-    mov_uni = mov_obj_pairs./nk.repmat([1 1 mov_obj_pairs.frames/hlen]); 
+%     mov_uni = mov_obj_pairs./nk.repmat([1 1 mov_obj_pairs.frames/hlen]);
+    [lfdim1, lfdim2, lfdim3] = size(lf);
+    mov_uni = mov_obj(:,:,1:lfdim3);
     % mov_uni should not have fluctuations that are periodic with the
     % period of the pattern sequence 
 
     %% Direct full estimation
     idx_map = mod((1:mov_obj.frames)-1,interlen)+1; % maps the frame index of the calibration data into the movie
     selftic = tic; % mark time before pca
-    [uu, su, vu] = pca_eig(mov_uni(:,:),ncomps); % mov_uni is a uniform movie previously estimated.
+    [uu, su, vu] = svds(mov_uni(:,:),ncomps); % mov_uni is a uniform movie previously estimated.
     tpca = toc(selftic); % time after factorization
     uu = real(uu); % cast to avoid complex datatype from complex eigenvalues 
     sv = real(vu*su); % mov_uni(:,:) === uu*sv' where uu columns are orthonormal
@@ -101,7 +106,45 @@ function [sv, uhad, uref, uu] = dyn_had(obj_data, cal_data, ncomps)
     disp 'estimating components ...'
     for comp = 1:ncomps % for each component of the USV decomposition
         sv3d = reshape(sv([1:end; 1:end],comp),1,1,[]); % arrange time trace along dimension 3
+%         [movdim1, movdim2, movdim3] = size(mov_obj);
+%         sv3d = repmat(sv(:, comp), 1, 1, movdim3);
         ui = evnfun(residual_mov.*sv3d,@sum,interlen)./evnfun((mov_uni(1,1,[1:end; 1:end])*0+1).*sv3d.^2,@sum,interlen); % interpolate
+        
+        [dim1, dim2, dim3] = size(ui);
+%         display ui without thresholding
+%         ui_reshaped = reshape(ui.data, 44, 80, dim3);
+%         figure(9+comp);
+%         moviesc(vm(ui_reshaped));
+%         title(comp);
+
+        data = ui.data;
+        ui_reshaped = reshape(data, 44, 80, dim3);
+        figure(9+comp);
+        moviesc(vm(ui_reshaped));
+        title(comp);
+        for i = 1:dim3
+            current_frame = data(:, :, i);
+            
+            if mean(current_frame(:)) > 0
+                current_frame = abs(current_frame);
+                thresh = graythresh(current_frame);
+                curr_frame_thresh = wthresh(current_frame, 's', thresh);
+                data(:, :, i) = curr_frame_thresh;
+            elseif mean(current_frame(:)) < 0
+                current_frame = abs(current_frame);
+                thresh = graythresh(current_frame);
+                curr_frame_thresh = wthresh(current_frame, 's', thresh);
+                data(:, :, i) = -1 .* curr_frame_thresh;
+            end
+        end
+        
+        ui_reshaped = reshape(data, 44, 80, dim3);
+        figure(59+comp);
+        moviesc(vm(ui_reshaped));
+        title(comp);
+        
+        ui = vm(data);
+        
         uhad(:,comp) = mean((ui(:,1:2:end) - ui(:,2:2:end)).*cal_data,2); % hadamard demodulation
         uref(:,comp) = mean(ui(:,:),2); % widefield reference
         residual_mov = residual_mov - ui(idx_map).*sv3d; % update residual

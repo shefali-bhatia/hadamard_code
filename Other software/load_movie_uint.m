@@ -1,4 +1,4 @@
-function [ims, varargout] = load_movie(fname,varargin)
+function [ims, varargout] = load_movie_uint(fname,varargin)
 %LOAD_MOVIE Loads movie dataset in various formats used at the Cohen Lab
 %   load_movie reads from dcimg, binary and tif image formats. The first
 %   input argument contains a path to read from, either a filename ending
@@ -113,7 +113,7 @@ switch data_format
             ims = readBinMov_times(fname,nr,nc, frames_to_read);
         else
             ims = readBinMov(fname, nr, nc);
-        end;
+        end
         disp(['reading took ' num2str(toc) ' s']);
     case 'tif'
         % \*.tif -> ims
@@ -144,7 +144,7 @@ ims = tovec(ims);
 varargout{1} = nr;
 varargout{2} = nc;
 
-function [mov, nframes] = readBinMov_times(fileName, nrow, ncol, framelist);
+function [mov, nframes] = readBinMov_times(fileName, nrow, ncol, framelist)
 % [mov, nframe] = readBinMov_times(fileName, nrow, ncol, framelist);
 % If only one output: mov = readBinMov_times(fileName, nrow, ncol, framelist);
 % The output, mov, is a 3-D array or unsigned 16-bit integers
@@ -168,10 +168,10 @@ startlocs = framesize*(framelist-1);
 
 tmp = zeros(framesize, nframes,'uint16');
 
-for j = 1:nframes;
+for j = 1:nframes
     fseek(fid, startlocs(j)*2, 'bof');  % factor of two is for two bytes/pixel
     tmp(:,j) = fread(fid, framesize, '*uint16', 'l'); % uint16, little endian
-end;
+end
 fclose(fid);                            % close file
 
 % reshape vector into appropriately oriented, 3D array

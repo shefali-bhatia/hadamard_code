@@ -29,12 +29,12 @@
 % USE OR OTHER DEALINGS IN THE SOFTWARE.      
 %
 
-addpath(fullfile('..','Acquisition','DMD pattern generation'))
-addpath(fullfile('..','Analysis'))
-addpath(fullfile('..','Other software'))
-addpath(fullfile('..','Other software','Hadamard matrices'))
+% addpath(fullfile('..','Acquisition','DMD pattern generation'))
+% addpath(fullfile('..','Analysis'))
+% addpath(fullfile('..','Other software'))
+% addpath(fullfile('..','Other software','Hadamard matrices'))
 
-rootdir = fullfile('Raw data');
+rootdir = fullfile('Examples/Raw data');
 datafolder = {
     '131722_cal_20_i_n20_9600p_1ms_10V'
     '161037_fov04_z20_20_i_n20_9600p_1ms_665lp_10V_OD1'
@@ -49,16 +49,19 @@ hl = il/2; % hadamard length, equal to half the interleaved length
 hadtraces = hadamard_bincode_nopermutation(hl-1)'*2-1;
 
 %% Format calibration data
-caldir = fullfile(rootdir,datafolder{1});
-cal_fpath = fullfile(caldir,cal_fname);
+caldir = fullfile(rootdir,datafolder{1},'Sq_camera.bin');
+fulldir = fullfile(rootdir,datafolder{1});
+cal_fpath = fullfile(fulldir,cal_fname);
+horiz_dim = 80;
+vert_dim = 44;
 if ~exist(cal_fpath,'file')
-    cdata = vm(caldir);
+    cdata = vm(caldir, horiz_dim, vert_dim);
     cdata = cdata(2:end-1)-100;
     cdata = cdata(2001:end).pblc.evnfun(@mean,il);
     cmov = cdata(1:2:end) - cdata(2:2:end);
     cmov = cmov - cmov.mean;
     cmov = cmov./cmov.std;
-    save(cal_fpath,...
+    save(fulldir,...
         'cmov')
 
     % % alternative calibration processing method
@@ -82,20 +85,26 @@ for it_folder = 2:numel(datafolder)
     %% Format tissue data
     datadir = fullfile(rootdir,datafolder{it_folder});
     res_fpath = fullfile(datadir,res_fname);
-    if exist(res_fpath,'file')
-        continue
-    end
+%     if exist(res_fpath,'file')
+%         continue
+%     end
     disp(datadir)
     tmov = vm(datadir); % read raw data
     tmov = tmov(2:end-1)-100; % remove offset
 
     load(cal_fpath)
-    % fixes a synchronization error in one of the datasets
-    switch datafolder{it_folder}(1:6) 
-        case '161740'
-            frame_sync_offset = 1;
-            cmov = cmov([1+frame_sync_offset:end 1:frame_sync_offset]);
-    end
+%     % fixes a synchronization error in one of the datasets
+%     switch datafolder{it_folder}(1:6) 
+%         case '161740'
+%             frame_sync_offset = 1;
+%             cmov = cmov([1+frame_sync_offset:end 1:frame_sync_offset]);
+%     end
+    
+    figure(4)
+    moviesc(tmov)
+    figure(3)
+    moviesc(cmov)
+    disp(cmov.data)
 
     %%
     ncomps = 5;
@@ -138,7 +147,7 @@ rois = {[
    61.6390   42.7278
    20.0900   43.4567
     ]};
-%%
+%% 
 
 % reload reconstructed data from depth 50 um
 it_folder = 2;
@@ -168,8 +177,8 @@ load(res_fpath,...
 w60img = mean(vm(uref*sv',tmov.imsz));
 h60img = mean(vm(uhad*sv',tmov.imsz));
 % extract time traces 
-w60traces = apply_clicky_faster(rois,vm(uref*sv',tmov.imsz),'no');
-h60traces = apply_clicky_faster(rois,vm(uhad*sv',tmov.imsz),'no');
+% w60traces = apply_clicky_faster(rois,vm(uref*sv',tmov.imsz),'no');
+% h60traces = apply_clicky_faster(rois,vm(uhad*sv',tmov.imsz),'no');
 wImgDisplaySaturation = prctile([w50img(:); w60img(:)],99.9);
 hImgDisplaySaturation = prctile([h50img(:); h60img(:)],99.9);
 
@@ -203,8 +212,8 @@ subax = 400+(1:250*10);
 subinset = 2.99*500:3.2*500;
 
 tax = (subax - subax(1))/500;
-iref = w60traces(:,1);
-ihad = h60traces(:,1);
+% iref = w60traces(:,1);
+% ihad = h60traces(:,1);
 iref = vm(permute(iref,[3 2 1])).pblc.frameAverage;
 ihad = vm(permute(ihad,[3 2 1])).pblc.frameAverage;
 iref = iref(subax);

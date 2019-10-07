@@ -125,7 +125,7 @@ classdef vm
                 else
                     % if isdir, look for bin in that dir, in that case try
                     % to find the dims and open the bin
-                    if isdir(varargin{1})
+                    if isfolder(varargin{1})
                         expfile = fullfile(varargin{1},'experimental_parameters.txt');
                         binfile = fullfile(varargin{1},'Sq_camera.bin');
                         if exist(expfile,'file') && exist(binfile,'file')

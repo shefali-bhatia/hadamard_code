@@ -19,7 +19,7 @@
                                 s1obj = vm(builtin('subsref',obj.data,s(1)));
                             end
                             if ~isempty(s(2:end))
-                                if numArgumentsFromSubscript(obj,s(2:end));
+                                if numArgumentsFromSubscript(obj,s(2:end))
                                     varargout = {subsref(s1obj,s(2:end))};
                                 else
                                     varargout = {};
@@ -33,7 +33,7 @@
                         case 3 % three subindices - subsref all, return vm
                             s1obj = vm(builtin('subsref',obj.data,s(1)));
                             if ~isempty(s(2:end))
-                                if numArgumentsFromSubscript(obj,s(2:end));
+                                if numArgumentsFromSubscript(obj,s(2:end))
                                     varargout = {subsref(s1obj,s(2:end))};
                                 else
                                     varargout = {};

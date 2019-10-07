@@ -19,7 +19,7 @@
                 % vm2 = vm1 * traces
                 % matrix multiplication
                 % return as image matrix
-                objdata = toimg(double(obj.tovec.data)*objmat,obj.rows,obj.cols);
-                newobj = vm(objdata);
+                objdata = toimg(vm(double(obj.tovec.data)*objmat,[obj.rows,obj.cols]));
+                newobj = vm(objdata.data);
             end
         end

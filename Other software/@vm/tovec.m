@@ -11,5 +11,6 @@
             size_rcf = [r, c, f];
             if isequal(size_rcf,[obj.rows obj.cols obj.frames])
                 obj.data = reshape(obj.data,obj.rows*obj.cols,obj.frames);
+%                 disp(obj.data)
             end
         end
