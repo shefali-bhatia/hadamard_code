@@ -74,9 +74,12 @@ moviesc(d);
 % ADD NOISE TO EACH FRAME, APPLY HADAMARD PATTERN
 reps = 40;
 [imgdim1, imgdim2, imgdim3] = size(distanceImage);
-image_patterns = zeros(dim1, dim2, dim3*reps*imgdim3);
+reconstructedImage = zeros(imgdim1, imgdim2, imgdim3);
 for k = 1:imgdim3
-    for i = (dim3*reps*(k-1))+1:(dim3*reps*k)
+image_patterns = zeros(dim1, dim2, dim3*reps);
+disp(k)
+% for k = 1:imgdim3
+    for i = 1:(dim3*reps)
         j = mod(i, dim3);
         if j == 0
             j = dim3;
@@ -88,13 +91,11 @@ for k = 1:imgdim3
         image_patterns(:, :, i) = new_img_with_gauss + new_img_with_poiss - new_img;
     %     disp(mean(image_patterns(12:32, 30:50, i))/std(image_patterns(12:32, 30:50, i)));
     end
-end
+% end
 
 figure(4);
-image_patterns = vm(image_patterns);
-moviesc(image_patterns);
-
-hadamard_patterns = double(hadamard_patterns);
+new_image_patterns = vm(image_patterns);
+moviesc(new_image_patterns);
 
 
 
@@ -119,7 +120,7 @@ vert_dim = 44;
 %     figure(50);
 %     moviesc(resid_mov);
 %     [sv, uhad, uref, uu] = dyn_had(resid_mov(:,:), without_complement(:,:), ncomps);
-    [sv, uhad, uref, uu] = dyn_had(image_patterns(:,:), without_complement(:,:), ncomps);
+    [sv, uhad, uref, uu] = dyn_had(new_image_patterns(:,:), without_complement(:,:), ncomps);
     %%
     save(res_fpath,...
         'sv', ...
@@ -127,35 +128,6 @@ vert_dim = 44;
         'uref', ...
         'uu', ...
         'ncomps')
-
-%% Analysis
-% manually defined ROIs to integrate cell excluding overlapping area
-rois = {[
-   11.5251   27.6025
-   18.6321   32.8872
-   24.2813   26.6913
-   21.5478   18.4909
-   25.3747    8.6503
-   33.9396    6.8280
-   39.4066    1.3610
-    4.2358    1.1788
-    1.8667    1.3610
-    2.2312   23.4112
-   11.5251   27.6025
-    ],[
-   20.0900   43.4567
-   20.6367   35.2563
-   25.1925   26.8736
-   32.6640   24.8690
-   43.9624   21.4066
-   47.9715   12.6595
-   48.1538    5.9169
-   53.2563    7.1925
-   60.7278   20.3132
-   62.5501   32.1583
-   61.6390   42.7278
-   20.0900   43.4567
-    ]};
 %% 
 
 % reload reconstructed data
@@ -167,28 +139,33 @@ load(res_fpath,...
     'uu', ...
     'ncomps')
 % extract time-integrated images 
-w50img = mean(vm(uref*sv',image_patterns.imsz)); % widefield image
-h50img = mean(vm(uhad*sv',image_patterns.imsz)); % hadamard image
-% h50img = 1-mean(vm(uhad*sv',image_patterns.imsz)); % hadamard image
+w50img = mean(vm(uref*sv',new_image_patterns.imsz)); % widefield image
+h50img = mean(vm(uhad*sv',new_image_patterns.imsz)); % hadamard image
 
 % reload reconstructed data from depth 60 um
-res_fpath = fullfile(rootdir,'results.mat');
-load(res_fpath,...
-    'sv', ...
-    'uhad', ...
-    'uref', ...
-    'uu', ...
-    'ncomps')
-% extract time-integrated images 
-w60img = mean(vm(uref*sv',image_patterns.imsz));
-h60img = mean(vm(uhad*sv',image_patterns.imsz));
+% res_fpath = fullfile(rootdir,'results.mat');
+% load(res_fpath,...
+%     'sv', ...
+%     'uhad', ...
+%     'uref', ...
+%     'uu', ...
+%     'ncomps')
+% % extract time-integrated images 
+% w60img = mean(vm(uref*sv',image_patterns.imsz));
+% h60img = mean(vm(uhad*sv',image_patterns.imsz));
 
-figure(5);
+reconstructedImage(:, :, k) = h50img;
+
+figure(100+k);
 moviesc(vm(h50img));
+end
+
+figure(200);
+moviesc(vm(reconstructedImage));
 
 % mse_19_5_400_svdtwice = immse(distanceImage, h50img);
 % name = 'mse_19_5_400_svdtwice';
-% save('Simulations-lower_intensity/hadamard_code_mses', name, '-append')
+% save('Simulations-soft_thresholding/hadamard_code_mses', name, '-append')
 % saveas(gcf, "Simulations-soft_thresholding/"+name, 'png');
 
 function distanceImage = generateBaseImageGradientCircle(centerX,centerY,radius, dim1, dim2)
