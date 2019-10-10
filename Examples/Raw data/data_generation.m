@@ -41,54 +41,54 @@ moviesc(without_complement)
 title 'illumination patterns without interleaved complements'
 
 % GENERATE BASE IMAGE
-[dim1, dim2, dim3] = size(hadamard_patterns);
-
-[columnsInImage, rowsInImage] = meshgrid(1:dim2, 1:dim1);
-centerX = 40;
-centerY = 22;
-radius = 10;
-circlePixels = (rowsInImage - centerY).^2 + (columnsInImage - centerX).^2 <= radius.^2;
-% Euclidean Distance Transform
-distanceImage = bwdist(~circlePixels);
-% Normalization
-distanceImage = distanceImage / max(distanceImage(:));
-distanceImage = double(distanceImage);
-
-figure(3);
-d = vm(distanceImage);
-moviesc(d);
-
-% GENERATE "MOVING" BASE IMAGES
 % [dim1, dim2, dim3] = size(hadamard_patterns);
 % 
-% timestep1 = generateBaseImageGradientCircle(20,22,10,dim1,dim2);
-% timestep2 = generateBaseImageGradientCircle(40,22,10,dim1,dim2);
-% timestep3 = generateBaseImageGradientCircle(60,22,10,dim1,dim2);
-% 
-% distanceImage = cat(3, timestep1, timestep2, timestep3);
+% [columnsInImage, rowsInImage] = meshgrid(1:dim2, 1:dim1);
+% centerX = 40;
+% centerY = 22;
+% radius = 10;
+% circlePixels = (rowsInImage - centerY).^2 + (columnsInImage - centerX).^2 <= radius.^2;
+% % Euclidean Distance Transform
+% distanceImage = bwdist(~circlePixels);
+% % Normalization
+% distanceImage = distanceImage / max(distanceImage(:));
+% distanceImage = double(distanceImage);
 % 
 % figure(3);
 % d = vm(distanceImage);
 % moviesc(d);
 
+% GENERATE "MOVING" BASE IMAGES
+[dim1, dim2, dim3] = size(hadamard_patterns);
+
+timestep1 = generateBaseImageGradientCircle(20,22,10,dim1,dim2);
+timestep2 = generateBaseImageGradientCircle(40,22,10,dim1,dim2);
+timestep3 = generateBaseImageGradientCircle(60,22,10,dim1,dim2);
+
+distanceImage = cat(3, timestep1, timestep2, timestep3);
+
+figure(3);
+d = vm(distanceImage);
+moviesc(d);
+
 % ADD NOISE TO EACH FRAME, APPLY HADAMARD PATTERN
 reps = 40;
 [imgdim1, imgdim2, imgdim3] = size(distanceImage);
 image_patterns = zeros(dim1, dim2, dim3*reps*imgdim3);
-% for k = 1:imgdim3
-for i = (dim3*reps*(k-1))+1:(dim3*reps*k)
-    j = mod(i, dim3);
-    if j == 0
-        j = dim3;
+for k = 1:imgdim3
+    for i = (dim3*reps*(k-1))+1:(dim3*reps*k)
+        j = mod(i, dim3);
+        if j == 0
+            j = dim3;
+        end
+        pattern = hadamard_patterns.data(:,:,j);
+        new_img = distanceImage(:, :, k) .* pattern;
+        new_img_with_gauss = imnoise(new_img,'gaussian');
+        new_img_with_poiss = imnoise(new_img, 'poisson');
+        image_patterns(:, :, i) = new_img_with_gauss + new_img_with_poiss - new_img;
+    %     disp(mean(image_patterns(12:32, 30:50, i))/std(image_patterns(12:32, 30:50, i)));
     end
-    pattern = hadamard_patterns.data(:,:,j);
-    new_img = distanceImage(:, :, k) .* pattern;
-    new_img_with_gauss = imnoise(new_img,'gaussian');
-    new_img_with_poiss = imnoise(new_img, 'poisson');
-    image_patterns(:, :, i) = new_img_with_gauss + new_img_with_poiss - new_img;
-%     disp(mean(image_patterns(12:32, 30:50, i))/std(image_patterns(12:32, 30:50, i)));
 end
-% end
 
 figure(4);
 image_patterns = vm(image_patterns);
