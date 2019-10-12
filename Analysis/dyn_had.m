@@ -19,7 +19,7 @@
 % OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 % USE OR OTHER DEALINGS IN THE SOFTWARE.      
 %
-function [sv, uhad, uref, uu] = dyn_had(obj_data, cal_data, ncomps)
+function [sv, uhad, uref, uu] = dyn_had(obj_data, cal_data, ncomps, ydim, xdim)
 %dyn_had   Dynamic hadamard demodulation. 
 %   dyn_had(obj_data, cal_data, ncomps) analyzes a movie of a dynamic
 %   object illuminated with periodic interleaved patterned illumination
@@ -118,10 +118,10 @@ function [sv, uhad, uref, uu] = dyn_had(obj_data, cal_data, ncomps)
 %         title(comp);
 
         data = ui.data;
-        ui_reshaped = reshape(data, 44, 80, dim3);
-        figure(9+comp);
-        moviesc(vm(ui_reshaped));
-        title(comp);
+%         ui_reshaped = reshape(data, ydim, xdim, dim3);
+%         figure(9+comp);
+%         moviesc(vm(ui_reshaped));
+%         title(comp);
         for i = 1:dim3
             current_frame = data(:, :, i);
             
@@ -138,11 +138,11 @@ function [sv, uhad, uref, uu] = dyn_had(obj_data, cal_data, ncomps)
             end
         end
         
-        ui_reshaped = reshape(data, 44, 80, dim3);
-        figure(59+comp);
-        moviesc(vm(ui_reshaped));
-        title(comp);
-        
+%         ui_reshaped = reshape(data, ydim, xdim, dim3);
+%         figure(59+comp);
+%         moviesc(vm(ui_reshaped));
+%         title(comp);
+%         
         ui = vm(data);
         
         uhad(:,comp) = mean((ui(:,1:2:end) - ui(:,2:2:end)).*cal_data,2); % hadamard demodulation
