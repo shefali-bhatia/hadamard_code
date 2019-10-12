@@ -13,7 +13,7 @@
 % in any case, m>n patterns are generated, with m as low as possible.
 % The offset defines how orthogonal locations distribute in space; they
 % should be equidistant from each other to minimize scattering crosstalk
-nlocations_and_offset = [11 3]; % [n offset]
+nlocations_and_offset = [27 6]; % [n offset]
 
 % optional parameter binning to group projection elements
 binning = [1 1];
@@ -73,7 +73,7 @@ mask = reconstructedImage & (reconstructedImage > 1e-5);
 figure(305);
 moviesc(vm(mask));
 
-[clusterIndexes, clusterCenters] = kmeans(reconstructedImage(:), 10,...
+[clusterIndexes, clusterCenters] = kmeans(reconstructedImage(:), 2,...
   'distance', 'sqEuclidean', ...
   'Replicates', 2);
 clustering = reshape(clusterIndexes, 44, 80);
@@ -81,8 +81,7 @@ figure(300);
 moviesc(vm(clustering));
 title('Kmeans Clustering');
 
-
-[maxValue, indexOfMaxValue] = max(clusterCenters);
+[~, indexOfMaxValue] = max(clusterCenters);
 obj = clustering == indexOfMaxValue;
 obj = bwareafilt(obj, 1);
 figure(301);
@@ -105,7 +104,7 @@ figure(202);
 moviesc(vm(roi));
 
 % generate hadamard codes
-nlocations_and_offset = [27 6]; % [n offset]
+nlocations_and_offset = [63 14]; % [n offset]
 binning = [1 1]; % optional parameter binning to group projection elements
 
 rdim = r_range(2)-r_range(1)+1;
@@ -131,12 +130,12 @@ title("Second round of reconstruction");
 
 % PART 4 ------------> Reconstruct to original resolution of image
 
-reconstructedImage_final = zeros(npix_y, npix_x);
-reconstructedImage_final(r_range(1):r_range(2), c_range(1):c_range(2)) = reconstructedImage2;
-
+final = reconstructedImage;
+final(r_range(1):r_range(2), c_range(1):c_range(2)) = reconstructedImage2(:,:);
+final = final .* obj;
+final(final<0) = 0;
 figure(204);
-moviesc(vm(reconstructedImage_final));
-imshow(reconstructedImage_final);
+imshow(final, []);
 title("FINAL IMAGE");
 
 
