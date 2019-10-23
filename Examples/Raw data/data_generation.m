@@ -24,6 +24,8 @@ npix_y = 44;
 
 [hadamard_patterns, without_complement] = generateHadamardCodes(nlocations_and_offset, binning, npix_x, npix_y);
 
+disp(min(hadamard_patterns.data(:)))
+disp(max(hadamard_patterns.data(:)))
 % Display patterns as imagej stack style. note there are 2*m frames
 figure(1)
 moviesc(hadamard_patterns)
@@ -130,11 +132,13 @@ title("Second round of reconstruction");
 
 % PART 4 ------------> Reconstruct to original resolution of image
 
-final = reconstructedImage;
+[rdim1, rdim2, rdim3] = size(reconstructedImage);
+final = zeros(rdim1, rdim2, rdim3);
 final(r_range(1):r_range(2), c_range(1):c_range(2)) = reconstructedImage2(:,:);
-final = final .* obj;
-final(final<0) = 0;
+% final = final .* obj;
+% final(final<0) = 0;
 figure(204);
+moviesc(vm(reconstructedImage));
 imshow(final, []);
 title("FINAL IMAGE");
 
@@ -156,7 +160,7 @@ for i = 1:(dim3*reps)
     new_img = distanceImage(:, :, k) .* pattern;
     new_img_with_gauss = imnoise(new_img,'gaussian');
     new_img_with_poiss = imnoise(new_img, 'poisson');
-    image_patterns(:, :, i) = new_img_with_gauss + new_img_with_poiss - new_img;
+    image_patterns(:, :, i) = new_img_with_gauss + new_img_with_poiss;
 end
 
 figure(4);
