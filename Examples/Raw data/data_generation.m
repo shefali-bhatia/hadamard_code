@@ -3,6 +3,8 @@
 % fashion.
 %
 
+selftic = tic;
+
 % CLOSED LOOP PATTERN
 % PART 1 ------------> Run algorithm with fewer patterns
 
@@ -13,7 +15,7 @@
 % in any case, m>n patterns are generated, with m as low as possible.
 % The offset defines how orthogonal locations distribute in space; they
 % should be equidistant from each other to minimize scattering crosstalk
-nlocations_and_offset = [27 6]; % [n offset]
+nlocations_and_offset = [63 14]; % [n offset]
 
 % optional parameter binning to group projection elements
 binning = [1 1];
@@ -23,6 +25,9 @@ npix_x = 80;
 npix_y = 44;
 
 [hadamard_patterns, without_complement] = generateHadamardCodes(nlocations_and_offset, binning, npix_x, npix_y);
+% hadamard_patterns_data = hadamard_patterns.data();
+
+% hadamard_patterns_data = permute(hadamard_patterns_data, [2 1 3]);
 
 disp(min(hadamard_patterns.data(:)))
 disp(max(hadamard_patterns.data(:)))
@@ -40,7 +45,7 @@ title 'illumination patterns without interleaved complements'
 
 centerX = 40;
 centerY = 22;
-radius = 20;
+radius = 25;
 
 distanceImage = generateBaseImageGradientCircle(centerX,centerY,radius, dim1, dim2);
 
@@ -105,8 +110,11 @@ roi = distanceImage(r_range(1):r_range(2), c_range(1):c_range(2));
 figure(202);
 moviesc(vm(roi));
 
+% time taken to run first round of estimation
+time_to_roi = toc(selftic);
+
 % generate hadamard codes
-nlocations_and_offset = [63 14]; % [n offset]
+nlocations_and_offset = [19 5]; % [n offset]
 binning = [1 1]; % optional parameter binning to group projection elements
 
 rdim = r_range(2)-r_range(1)+1;
@@ -123,6 +131,7 @@ figure(2)
 moviesc(without_complement)
 title 'illumination patterns without interleaved complements, second round'
 
+% NUMBER OF REPETITIONS ---------------------------------------------------
 reps = 240;
 
 reconstructedImage2 = reconstructImage(roi, hadamard_patterns, without_complement, reps);
@@ -138,9 +147,22 @@ final(r_range(1):r_range(2), c_range(1):c_range(2)) = reconstructedImage2(:,:);
 % final = final .* obj;
 % final(final<0) = 0;
 figure(204);
-moviesc(vm(reconstructedImage));
-imshow(final, []);
+moviesc(vm(final));
 title("FINAL IMAGE");
+
+% total time
+total_time = toc(selftic);
+% time to generate image from roi
+time_roi_to_final = total_time - time_to_roi;
+
+radius_25_mse_19_5_240 = immse(distanceImage, final);
+radius_25_time_mse_19_5_240 = time_roi_to_final;
+name = 'radius_25_mse_19_5_240';
+name2 = 'radius_25_time_mse_19_5_240';
+save('Simulations-rect_roi/diff_radius_sizes/hadamard_code_mses', name)
+save('Simulations-rect_roi/diff_radius_sizes/calc_times', name2)
+saveas(gcf, "Simulations-rect_roi/diff_radius_sizes/"+name, 'png');
+
 
 
 function reconstructedImage = reconstructImage(distanceImage, hadamard_patterns, without_complement, reps)

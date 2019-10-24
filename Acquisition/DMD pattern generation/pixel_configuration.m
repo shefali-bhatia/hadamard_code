@@ -35,10 +35,10 @@ function [device_rows, device_cols, active_rows, active_cols, ...
     % the ALP high speed API 4.2 description. the ordinal organization is the
     % same for both: a stream of numbers fills first a column and then the next
     % in matlab, and first a row and then the next in ALP.
-    device_rows = 1024; 
-    device_cols = 768;
-    active_rows = 1024; %512;
-    active_cols = 768;  %256;
+    device_rows = 1024;  %1600  %1024
+    device_cols = 758;   %2560  %758
+    active_rows = 1024; %1600   %1024
+    active_cols = 758;  %2560   %758
     active_row_offset = 0;  % 448
     active_col_offset = 0;  %275; % 320
     if isempty(active_row_offset) || active_row_offset < 0

@@ -82,13 +82,13 @@ function [sv, uhad, uref, uu] = dyn_had(obj_data, cal_data, ncomps, ydim, xdim)
     mov_obj_pairs = mov_obj.blnfun(@mean,2); % widefield movie from sum of pairs
     lf = mov_obj_pairs.imfilter(ker,'replicate'); % movie with low temporal frequency dynamics
     lf(lf<2) = 2; % avoid division errors
-    nk = mov_obj_pairs(hlen/2+1:end-hlen/2).evnfun(@mean,hlen)./lf(hlen/2+1:end-hlen/2).evnfun(@mean,hlen); % extract normalized periodic component from movie
-    nk = nk([hlen/2+1:end 1:hlen/2]); % rearrange frames in appropriate order
+%     nk = mov_obj_pairs(hlen/2+1:end-hlen/2).evnfun(@mean,hlen)./lf(hlen/2+1:end-hlen/2).evnfun(@mean,hlen); % extract normalized periodic component from movie
+%     nk = nk([hlen/2+1:end 1:hlen/2]); % rearrange frames in appropriate order
     % correct high-speed periodic intensity fluctuations. input movie must
     % have length of integer multiple of the pattern sequence. mov_uni has
     % half the frames of the input movie.
 %     mov_uni = mov_obj_pairs./nk.repmat([1 1 mov_obj_pairs.frames/hlen]);
-    [lfdim1, lfdim2, lfdim3] = size(lf);
+    [~, ~, lfdim3] = size(lf);
     mov_uni = mov_obj(:,:,1:lfdim3);
     % mov_uni should not have fluctuations that are periodic with the
     % period of the pattern sequence 
