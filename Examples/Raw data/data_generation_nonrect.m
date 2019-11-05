@@ -38,10 +38,16 @@ title 'illumination patterns without interleaved complements'
 % GENERATE BASE IMAGE
 [dim1, dim2, dim3] = size(hadamard_patterns);
 
-centerX = 40;
-centerY = 22;
+centerX1 = 25;
+centerY1 = 22;
+centerX2 = 55;
+centerY2 = 22;
 radius = 20;
 
+centerX = 40;
+centerY = 22;
+
+% distanceImage = generate2BaseImageGradientCircles(centerX1,centerY1,centerX2,centerY2,radius, dim1, dim2);
 distanceImage = generateBaseImageGradientCircle(centerX,centerY,radius, dim1, dim2);
 
 figure(3);
@@ -83,9 +89,30 @@ figure(300);
 moviesc(vm(clustering));
 title('Kmeans Clustering');
 
+% FIXME --> change to use greythresh, find(distanceImage > T)
+%   --> nvm that did not work
+disp(clusterCenters)
 [~, indexOfMaxValue] = max(clusterCenters);
 obj = clustering == indexOfMaxValue;
-obj = bwareafilt(obj, 1);
+% obj = imbinarize(obj .* reconstructedImage, graythresh(obj .* reconstructedImage));
+
+
+props = regionprops(obj, 'FilledArea');
+props_arr = cell2mat(struct2cell(props)');
+max_prop = max(props_arr);
+i = 1;
+for j = 1:length(props)
+    if props_arr(i)/max_prop < .5
+        props_arr(i) = [];
+    else
+        i = i + 1;
+    end
+end
+
+num_clusters = length(props_arr);
+obj = bwareafilt(obj, num_clusters);
+
+
 figure(301);
 moviesc(vm(obj));
 title('Max Cluster');
@@ -314,7 +341,7 @@ function reconstructedImage = reconstructImageVectorized(distanceImage, hadamard
     %     figure(50);
     %     moviesc(resid_mov);
     %     [sv, uhad, uref, uu] = dyn_had(resid_mov(:,:), without_complement(:,:), ncomps);
-        [sv, uhad, uref, uu] = dyn_had_vec(new_image_patterns.data(:,:), without_complement.data(:,:), ncomps, dim1, dim2);
+        [sv, uhad, uref, uu] = dyn_had_vec(new_image_patterns.data(:,:), without_complement.data(:,:), ncomps);
         %%
         save(res_fpath,...
             'sv', ...
@@ -365,6 +392,19 @@ function distanceImage = generateBaseImageGradientCircle(centerX,centerY,radius,
     [columnsInImage, rowsInImage] = meshgrid(1:dim2, 1:dim1);
 
     circlePixels = (rowsInImage - centerY).^2 + (columnsInImage - centerX).^2 <= radius.^2;
+    % Euclidean Distance Transform
+    distanceImage = bwdist(~circlePixels);
+    % Normalization
+    distanceImage = distanceImage / max(distanceImage(:));
+    distanceImage = double(distanceImage)/100;
+end
+
+function distanceImage = generate2BaseImageGradientCircles(centerX1,centerY1,centerX2, centerY2, radius, dim1, dim2)
+    [columnsInImage, rowsInImage] = meshgrid(1:dim2, 1:dim1);
+
+    circle1Pixels = (rowsInImage - centerY1).^2 + (columnsInImage - centerX1).^2 <= radius.^2;
+    circle2Pixels = (rowsInImage - centerY2).^2 + (columnsInImage - centerX2).^2 <= radius.^2;
+    circlePixels = circle1Pixels | circle2Pixels;
     % Euclidean Distance Transform
     distanceImage = bwdist(~circlePixels);
     % Normalization

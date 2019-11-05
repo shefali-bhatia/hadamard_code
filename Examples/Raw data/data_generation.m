@@ -212,7 +212,7 @@ hadtraces = hadamard_bincode_nopermutation(hl-1)'*2-1;
 %     figure(50);
 %     moviesc(resid_mov);
 %     [sv, uhad, uref, uu] = dyn_had(resid_mov(:,:), without_complement(:,:), ncomps);
-    [sv, uhad, uref, uu] = dyn_had(new_image_patterns(:,:), without_complement(:,:), ncomps, dim1, dim2);
+    [sv, uhad, uref, uu] = dyn_had(new_image_patterns(:,:), without_complement(:,:), ncomps);
     %%
     save(res_fpath,...
         'sv', ...

@@ -19,7 +19,7 @@
 % OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 % USE OR OTHER DEALINGS IN THE SOFTWARE.      
 %
-function [sv, uhad, uref, uu] = dyn_had(obj_data, cal_data, ncomps, ydim, xdim)
+function [sv, uhad, uref, uu] = dyn_had(obj_data, cal_data, ncomps)
 %dyn_had   Dynamic hadamard demodulation. 
 %   dyn_had(obj_data, cal_data, ncomps) analyzes a movie of a dynamic
 %   object illuminated with periodic interleaved patterned illumination
