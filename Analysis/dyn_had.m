@@ -108,7 +108,7 @@ function [sv, uhad, uref, uu] = dyn_had(obj_data, cal_data, ncomps)
         sv3d = reshape(sv([1:end; 1:end],comp),1,1,[]); % arrange time trace along dimension 3
 %         [movdim1, movdim2, movdim3] = size(mov_obj);
 %         sv3d = repmat(sv(:, comp), 1, 1, movdim3);
-        ui = evnfun(residual_mov.*sv3d,@sum,interlen)./evnfun((mov_uni(1,1,[1:end; 1:end])*0+1).*sv3d.^2,@sum,interlen); % interpolate
+        ui = abs(evnfun(residual_mov.*sv3d,@sum,interlen)./evnfun((mov_uni(1,1,[1:end; 1:end])*0+1).*sv3d.^2,@sum,interlen)); % interpolate
         
         [dim1, dim2, dim3] = size(ui);
 %         display ui without thresholding
@@ -118,31 +118,40 @@ function [sv, uhad, uref, uu] = dyn_had(obj_data, cal_data, ncomps)
 %         title(comp);
 
         data = ui.data;
-%         ui_reshaped = reshape(data, ydim, xdim, dim3);
-%         figure(9+comp);
-%         moviesc(vm(ui_reshaped));
+        ui_reshaped = reshape(data, 1200, 1200, dim3);
+        figure(9+comp);
+        moviesc(vm(ui_reshaped));
+        title(comp);
+%         
+%         figure(99+comp);
+%         imhist(ui_reshaped);
 %         title(comp);
-        for i = 1:dim3
-            current_frame = data(:, :, i);
-            
-            if mean(current_frame(:)) > 0
-                current_frame = abs(current_frame);
-                thresh = graythresh(current_frame);
-                curr_frame_thresh = wthresh(current_frame, 's', thresh);
-                data(:, :, i) = curr_frame_thresh;
-            elseif mean(current_frame(:)) < 0
-                current_frame = abs(current_frame);
-                thresh = graythresh(current_frame);
-                curr_frame_thresh = wthresh(current_frame, 's', thresh);
-                data(:, :, i) = -1 .* curr_frame_thresh;
-            end
-        end
         
-%         ui_reshaped = reshape(data, ydim, xdim, dim3);
+%         for i = 1:dim3
+%             current_frame = data(:, :, i);
+%             
+%             if mean(current_frame(:)) > 0
+%                 disp(mean(current_frame(:)));
+%                 current_frame = abs(current_frame);
+%                 thresh = graythresh(current_frame);
+%                 disp(thresh);
+%                 curr_frame_thresh = wthresh(current_frame, 's', thresh);
+%                 data(:, :, i) = curr_frame_thresh;
+%             elseif mean(current_frame(:)) < 0
+%                 disp(mean(current_frame(:)));
+%                 current_frame = abs(current_frame);
+%                 thresh = graythresh(current_frame);
+%                 disp(thresh);
+%                 curr_frame_thresh = wthresh(current_frame, 's', thresh);
+%                 data(:, :, i) = -1 .* curr_frame_thresh;
+%             end
+%         end
+        
+%         ui_reshaped = reshape(data, 1200, 1200, dim3);
 %         figure(59+comp);
 %         moviesc(vm(ui_reshaped));
 %         title(comp);
-%         
+        
         ui = vm(data);
         
         uhad(:,comp) = mean((ui(:,1:2:end) - ui(:,2:2:end)).*cal_data,2); % hadamard demodulation

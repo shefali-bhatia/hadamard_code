@@ -111,17 +111,9 @@ function [sv, uhad, uref, uu] = dyn_had_vec(obj_data, cal_data, ncomps, ydim, xd
         ui = evnfun(residual_mov.*sv3d,@sum,interlen)./evnfun((mov_uni(1,1,[1:end; 1:end])*0+1).*sv3d.^2,@sum,interlen); % interpolate
         
         [dim1, dim2, dim3] = size(ui);
-%         display ui without thresholding
-%         ui_reshaped = reshape(ui.data, 44, 80, dim3);
-%         figure(9+comp);
-%         moviesc(vm(ui_reshaped));
-%         title(comp);
 
         data = ui.data;
-%         ui_reshaped = reshape(data, ydim, xdim, dim3);
-%         figure(9+comp);
-%         moviesc(vm(ui_reshaped));
-%         title(comp);
+
         for i = 1:dim3
             current_frame = data(:, :, i);
             
@@ -137,15 +129,10 @@ function [sv, uhad, uref, uu] = dyn_had_vec(obj_data, cal_data, ncomps, ydim, xd
                 data(:, :, i) = -1 .* curr_frame_thresh;
             end
         end
-        
-%         ui_reshaped = reshape(data, ydim, xdim, dim3);
-%         figure(59+comp);
-%         moviesc(vm(ui_reshaped));
-%         title(comp);
-%         
+   
         ui = vm(data);
         
-        uhad(:,comp) = mean((ui(:,1:2:end) - ui(:,2:2:end)).*cal_data,2); % hadamard demodulation
+        uhad(:,comp) = abs(mean((ui(:,1:2:end) - ui(:,2:2:end)).*cal_data,2)); % hadamard demodulation
         uref(:,comp) = mean(ui(:,:),2); % widefield reference
         residual_mov = residual_mov - ui(idx_map).*sv3d; % update residual
     end

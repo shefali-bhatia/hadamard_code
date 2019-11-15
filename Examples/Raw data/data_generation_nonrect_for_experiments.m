@@ -6,10 +6,10 @@
 selftic = tic;
 
 % Dimensions of images taken during experiment
-dim1 = 600;
-dim2 = 600;
+dim1 = 1200;
+dim2 = 1200;
 
-img_name = '3.9umRedbeads_region2_withPhantom_lowconcentration_3';
+img_name = 'randomPattern_wPhantom_lowC_3';
 name = strcat('SI/', img_name, '/Pos0');
 
 % LOAD IMAGES THAT WERE TAKEN DURING EXPERIMENT
@@ -20,9 +20,14 @@ directory = dir(filename);
 image_patterns = zeros(dim1, dim2, length(directory)-1);
 for k=1:length(directory)-1
     file = strcat(name, '/', directory(k).name);
-    image = mat2gray(imread(file));
-    image_patterns(:, :, k) = im2double(image);
+%     image = mat2gray(imread(file));
+%     image_patterns(:, :, k) = im2double(image);
+    image_patterns(:, :, k) = imread(file);
 end
+
+toint = {image_patterns(:, :, 1:64), image_patterns(:, :, 65:128)};
+image_patterns_interleaved = reshape(permute(cell2mat(permute(toint,[1 4 3 2])),[1 2 4 3]),size(toint{1},1),size(toint{1},2),[]);
+image_patterns = image_patterns_interleaved;
 
 figure(1);
 moviesc(vm(image_patterns));
@@ -31,39 +36,63 @@ title('images taken using interpolated hadamard patterns');
 %%
 % LOAD INTERPOLATED HADAMARD PATTERNS
 
-filename=fullfile('SI/homogeneousSample_1/Pos0', '*.tif');
+filename=fullfile('SI/homogenous_randomPattern_r20Pattern_power1_1/Pos0', '*.tif');
 directory = dir(filename);
 
 % last image in the directory is not applicable
 interpolated_patterns = zeros(dim1, dim2, length(directory)-1);
 bin_interpolated_patterns = zeros(dim1, dim2, length(directory)-1);
 for k=1:length(directory)-1
-    file = strcat('SI/homogeneousSample_1/Pos0/', directory(k).name);
+    file = strcat('SI/homogenous_randomPattern_r20Pattern_power1_1/Pos0/', directory(k).name);
+    
+%     I = imread(file);
+%     se = strel('disk', 15);
+%     filtered = imtophat(I, se);
+%     contrastAdjusted = imadjust(filtered);
+%     bw = imbinarize(contrastAdjusted);
+%     
+%     bin_interpolated_patterns(:, :, k) = imbinarize(I);
+%     pattern = mat2gray(imread(file));
     interpolated_patterns(:, :, k) = imread(file);
-    
-    I = imread(file);
-    se = strel('disk', 15);
-    filtered = imtophat(I, se);
-    contrastAdjusted = imadjust(filtered);
-    bw = imbinarize(contrastAdjusted);
-    
-    bin_interpolated_patterns(:, :, k) = bw;
+
 end
 
-figure(2);
-moviesc(vm(interpolated_patterns));
-title('interpolated hadamard patterns');
+newInterpolated_pattern=zeros(size(interpolated_patterns));
+for i=1:size(interpolated_patterns, 3)
+    s = medfilt1(sum(interpolated_patterns(:, :, i), 2),20);
+    s_new = repmat(s, [1,size(interpolated_patterns, 2)]);
+    temp_pattern=interpolated_patterns(:, :, i) ./ s_new;
+    newInterpolated_pattern(:, :, i) = im2double(mat2gray(temp_pattern));
+    disp(i)
+end
 
-interp_without_complement = interpolated_patterns(:,:,1:2:end);
-bin_interp_without_complement = bin_interpolated_patterns(:,:,1:2:end);
+interpolated_patterns = newInterpolated_pattern;
+
+% interp_without_complement = interpolated_patterns(:,:,1:2:end);
+% bin_interp_without_complement = bin_interpolated_patterns(:,:,1:2:end);
+
+interp_without_complement = interpolated_patterns(:, :, 1:64);
+% bin_interp_without_complement = bin_interpolated_patterns(:,:,1:64);
+
+% toint = {interp_without_complement, interpolated_patterns(:, :, 65:128)};
+% interpolated_patterns_interleaved = reshape(permute(cell2mat(permute(toint,[1 4 3 2])),[1 2 4 3]),size(toint{1},1),size(toint{1},2),[]);
+% interpolated_patterns = interpolated_patterns_interleaved;
+
+% toint = {bin_interp_without_complement, bin_interpolated_patterns(:, :, 65:128)};
+% bin_interpolated_patterns_interleaved = reshape(permute(cell2mat(permute(toint,[1 4 3 2])),[1 2 4 3]),size(toint{1},1),size(toint{1},2),[]);
+% bin_interpolated_patterns = bin_interpolated_patterns_interleaved;
+
+% figure(2);
+% moviesc(vm(interpolated_patterns));
+% title('interpolated hadamard patterns, interleaved with complements');
 
 figure(3);
 moviesc(vm(interp_without_complement));
 title('interpolated hadamard patterns without complements');
 
-figure(4);
-moviesc(vm(bin_interpolated_patterns));
-title('interpolated hadamard patterns binary');
+% figure(4);
+% moviesc(vm(bin_interpolated_patterns));
+% title('interpolated hadamard patterns binary');
 
 %%
 
@@ -87,24 +116,29 @@ title('interpolated hadamard patterns binary');
 
 r = 20;
 r_image_patterns = image_patterns(:, :, 1:r);
-r_interp_without_complement = bin_interp_without_complement(:, :, 1:r/2);
+r_interp_without_complement = interp_without_complement(:, :, 1:r/2);
 
 reconstructedImage = reconstructImage(r_image_patterns, r_interp_without_complement);
-reconstructedImage(reconstructedImage < 0) = 0;
+% reconstructedImage = abs(reconstructedImage);
 
 figure(200);
 moviesc(vm(reconstructedImage));
 title("Image Reconstructed using r patterns");
 
+% reconstructedImage = im2double(mat2gray(reconstructedImage));
+% figure(201);
+% moviesc(vm(reconstructedImage));
+% title("Image Reconstructed using r patterns, filtered");
+
 % time taken to run first round of estimation
 time_to_roi = toc(selftic);
 
 %% SAVE FIGURE & CALC TIME
-fig_name = strcat("Simulations-nonrect_roi_exp/", img_name, '_20_patterns');
-saveas(gcf, fig_name+'.png');
-
-time_to_roi_3_9umRedbeads_region2_wPhantom_lowcon_3_20_patterns = time_to_roi;
-save('Simulations-nonrect_roi_exp/calc_times', 'time_to_roi_3_9umRedbeads_region2_wPhantom_lowcon_3_20_patterns', '-append');
+% fig_name = strcat("Simulations-nonrect_roi_exp/", img_name, '_20_patterns');
+% saveas(gcf, fig_name+'.png');
+% 
+% time_to_roi_3_9umRedbeads_region2_wPhantom_lowcon_3_20_patterns = time_to_roi;
+% save('Simulations-nonrect_roi_exp/calc_times', 'time_to_roi_3_9umRedbeads_region2_wPhantom_lowcon_3_20_patterns', '-append');
 
 %%
 % PART 2  ------------> Determine ROI using reconstructed image, kmeans
@@ -126,7 +160,7 @@ props_arr = cell2mat(struct2cell(props)');
 max_prop = max(props_arr);
 i = 1;
 for j = 1:length(props)
-    if props_arr(i)/max_prop < .01
+    if props_arr(i)/max_prop < .000000000000001
         props_arr(i) = [];
     else
         i = i + 1;
@@ -141,12 +175,12 @@ figure(301);
 moviesc(vm(obj));
 title('Max Cluster');
 
-[rows, columns, roi_vec] = find(obj .* mat2gray(reconstructedImage));
+[rows, columns, roi_vec] = find(obj .* reconstructedImage);
 
 %%
 % PART 3 ------------> Run algorithm with more patterns using ROI
 
-interp_without_complement_vec = vectorizeHadamardCodes(bin_interp_without_complement, rows, columns);
+interp_without_complement_vec = vectorizeHadamardCodes(interp_without_complement, rows, columns);
 
 total_num_patterns = size(image_patterns, 3);
 image_patterns_roi_array = zeros(length(roi_vec), total_num_patterns);
@@ -160,29 +194,29 @@ for i = 1:total_num_patterns
     end
 end
 
-img_patterns_roi_matrix = zeros(dim1, dim2, size(image_patterns_roi_array, 2));
+% img_patterns_roi_matrix = zeros(dim1, dim2, size(image_patterns_roi_array, 2));
+% 
+% patterns = vm(image_patterns_roi_array);
+% for d = 1:size(image_patterns_roi_array, 2)
+%     for i = 1:length(rows)
+%         img_patterns_roi_matrix(rows(i), columns(i), d) = patterns.data(i, d);
+%     end
+% end
+% 
+% figure(20)
+% moviesc(vm(img_patterns_roi_matrix))
+% title 'image patterns, second round'
 
-patterns = vm(image_patterns_roi_array);
-for d = 1:size(image_patterns_roi_array, 2)
-    for i = 1:length(rows)
-        img_patterns_roi_matrix(rows(i), columns(i), d) = patterns.data(i, d);
-    end
-end
-
-figure(20)
-moviesc(vm(img_patterns_roi_matrix))
-title 'image patterns, second round'
-
-without_complement_matrix = zeros(dim1, dim2, size(interp_without_complement_vec, 2));
-for d = 1:size(interp_without_complement_vec, 2)
-    for i = 1:length(rows)
-        without_complement_matrix(rows(i), columns(i), d) = interp_without_complement_vec(i, d);
-    end
-end
-
-figure(21)
-moviesc(vm(without_complement_matrix))
-title 'illumination patterns, second round'
+% without_complement_matrix = zeros(dim1, dim2, size(interp_without_complement_vec, 2));
+% for d = 1:size(interp_without_complement_vec, 2)
+%     for i = 1:length(rows)
+%         without_complement_matrix(rows(i), columns(i), d) = interp_without_complement_vec(i, d);
+%     end
+% end
+% 
+% figure(21)
+% moviesc(vm(without_complement_matrix))
+% title 'illumination patterns, second round'
 
 reconstructedImage2 = reconstructImageVectorized(image_patterns_roi_array, interp_without_complement_vec);
 
@@ -195,7 +229,7 @@ for i = 1:length(rows)
     final(rows(i), columns(i)) = reconstructedImage2(i);
 end
 
-final(final < 0) = 0;
+% final(final < 0) = 0;
 
 figure(204);
 moviesc(vm(final));
@@ -207,11 +241,11 @@ total_time = toc(selftic);
 time_roi_to_final = total_time - time_to_roi;
 
 %% SAVE FIGURE & CALC TIME
-fig_name = strcat("Simulations-nonrect_roi_exp/", img_name, '_final');
-saveas(gcf, fig_name+'.png');
-
-time_to_roi_3_9umRedbeads_region2_wPhantom_lowcon_3_final = time_roi_to_final;
-save('Simulations-nonrect_roi_exp/calc_times', 'time_to_roi_3_9umRedbeads_region2_wPhantom_lowcon_3_final', '-append');
+% fig_name = strcat("Simulations-nonrect_roi_exp/", img_name, '_final');
+% saveas(gcf, fig_name+'.png');
+% 
+% time_to_roi_3_9umRedbeads_region2_wPhantom_lowcon_3_final = time_roi_to_final;
+% save('Simulations-nonrect_roi_exp/calc_times', 'time_to_roi_3_9umRedbeads_region2_wPhantom_lowcon_3_final', '-append');
 
 
 
