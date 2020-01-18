@@ -13,16 +13,19 @@
 % in any case, m>n patterns are generated, with m as low as possible.
 % The offset defines how orthogonal locations distribute in space; they
 % should be equidistant from each other to minimize scattering crosstalk
-nlocations_and_offset = [27 6]; % [n offset]
+nlocations_and_offset = [19 5]; % [n offset]
 
 % optional parameter binning to group projection elements
-binning = [1 1];
+binning = [150 150];
+spacing = 136;
+npts = 150;
+sq_size = 66;
 
 % image dimensions
-npix_x = 80;
-npix_y = 44;
+npix_x = 1200;
+npix_y = 1200;
 
-[hadamard_patterns, without_complement] = generateHadamardCodesMatrix(nlocations_and_offset, binning, npix_x, npix_y);
+[hadamard_patterns, without_complement] = generatePoissonDiscCodesMatrix(nlocations_and_offset, spacing, npts, npix_x, npix_y, sq_size);
 
 % disp(min(hadamard_patterns.data(:)))
 % disp(max(hadamard_patterns.data(:)))
@@ -38,14 +41,14 @@ title 'illumination patterns without interleaved complements'
 % GENERATE BASE IMAGE
 [dim1, dim2, dim3] = size(hadamard_patterns);
 
-centerX1 = 25;
-centerY1 = 22;
+centerX1 = 600;
+centerY1 = 600;
 centerX2 = 55;
 centerY2 = 22;
-radius = 20;
+radius = 600;
 
-centerX = 40;
-centerY = 22;
+centerX = npix_x/2;
+centerY = npix_y/2;
 
 % distanceImage = generate2BaseImageGradientCircles(centerX1,centerY1,centerX2,centerY2,radius, dim1, dim2);
 distanceImage = generateBaseImageGradientCircle(centerX,centerY,radius, dim1, dim2);
@@ -67,7 +70,7 @@ moviesc(d);
 % d = vm(distanceImage);
 % moviesc(d);
 
-reps = 100;
+reps = 1;
 
 reconstructedImage = reconstructImage(distanceImage, hadamard_patterns, without_complement, reps);
 
@@ -84,7 +87,7 @@ moviesc(vm(mask));
 [clusterIndexes, clusterCenters] = kmeans(reconstructedImage(:), 2,...
   'distance', 'sqEuclidean', ...
   'Replicates', 2);
-clustering = reshape(clusterIndexes, 44, 80);
+clustering = reshape(clusterIndexes, dim1, dim2);
 figure(300);
 moviesc(vm(clustering));
 title('Kmeans Clustering');
@@ -141,12 +144,12 @@ moviesc(vm(roi));
 
 % generate hadamard codes
 nlocations_and_offset = [63 14]; % [n offset]
-binning = [1 1]; % optional parameter binning to group projection elements
+binning = [43 1]; % optional parameter binning to group projection elements
 
 % % rdim = r_range(2)-r_range(1)+1;
 % % cdim = c_range(2)-c_range(1)+1;
 
-[hadamard_patterns, without_complement] = generateHadamardCodesVector(nlocations_and_offset, binning, rows, columns);
+[hadamard_patterns, without_complement] = generatePoissonDiscCodesVector(nlocations_and_offset, spacing, npts, rows, columns, npix_x, npix_y);
 
 % Display patterns as imagej stack style. note there are 2*m frames
 hadamard_patterns_matrix = zeros(dim1, dim2, size(hadamard_patterns, 2));
@@ -216,9 +219,10 @@ function reconstructedImage = reconstructImage(distanceImage, hadamard_patterns,
         end
         pattern = hadamard_patterns.data(:,:,j);
         new_img = distanceImage(:, :, k) .* pattern;
-        new_img_with_gauss = imnoise(new_img,'gaussian');
-        new_img_with_poiss = imnoise(new_img, 'poisson');
-        image_patterns(:, :, i) = new_img_with_gauss + new_img_with_poiss;
+%         new_img_with_gauss = imnoise(new_img,'gaussian');
+%         new_img_with_poiss = imnoise(new_img, 'poisson');
+%         image_patterns(:, :, i) = new_img_with_gauss + new_img_with_poiss;
+        image_patterns(:, :, i) = new_img;
     end
 
     figure(4);
@@ -248,7 +252,7 @@ function reconstructedImage = reconstructImage(distanceImage, hadamard_patterns,
     %     figure(50);
     %     moviesc(resid_mov);
     %     [sv, uhad, uref, uu] = dyn_had(resid_mov(:,:), without_complement(:,:), ncomps);
-        [sv, uhad, uref, uu] = dyn_had(new_image_patterns(:,:), without_complement(:,:), ncomps, dim1, dim2);
+        [sv, uhad, uref, uu] = dyn_had(new_image_patterns(:,:), without_complement(:,:), ncomps);
         %%
         save(res_fpath,...
             'sv', ...
@@ -471,4 +475,151 @@ without_complement = vm(patterns_logical);
 % Crop the matrix around ROI for easier visualization
 hadamard_patterns = hadamard_patterns(1:npix_y,1:npix_x,:);
 without_complement = without_complement(1:npix_y,1:npix_x,:);
+end
+
+function [rand_patterns, without_complement] = generateRandomCodesMatrix(nlocations_and_offset, binning, npix_x, npix_y)
+patterns_logical_bins = logical(randi([0, 1], npix_x / binning(1), npix_y  / binning(2), nlocations_and_offset(1) + 1));
+
+[x, y, z] = size(patterns_logical_bins);
+
+patterns_logical = false(npix_x, npix_y, z);
+for p=1:z
+    patterns_logical(:, :, p) = imresize(patterns_logical_bins(:, :, p), [x y] .* binning, 'nearest');
+end
+
+% Interleave with complement in 3rd dimension, store as vectorized movie
+toint = {... % to interleave matrices in 3d, place them in a cell to then use the permute-cell2mat-permute-reshape method
+     patterns_logical ,...
+    ~patterns_logical};
+rand_patterns = vm(reshape(permute(cell2mat(permute(toint,[1 4 3 2])),[1 2 4 3]),size(toint{1},1),size(toint{1},2),[]));
+without_complement = vm(patterns_logical);
+end
+
+function [rand_patterns, without_complement] = generateRandomCodesVector(nlocations_and_offset, binning, index_rows, index_cols)
+    patterns_logical_bins = zeros(length(index_rows) / binning(1), 1, nlocations_and_offset(1) + 1);
+    for i=1:nlocations_and_offset(1) + 1
+        patterns_logical_bins(:,:,i) = logical(randi([0, 1], length(index_rows) / binning(1), length(index_cols)));
+    end
+    
+    [x, y, z] = size(patterns_logical_bins);
+
+    patterns_logical = false(length(index_rows) , length(index_cols), z);
+    for p=1:z
+        patterns_logical(:, :, p) = imresize(patterns_logical_bins(:, :, p), [x y] .* binning, 'nearest');
+    end
+
+    % Interleave with complement in 3rd dimension, store as vectorized movie
+    toint = {... % to interleave matrices in 3d, place them in a cell to then use the permute-cell2mat-permute-reshape method
+         patterns_logical ,...
+        ~patterns_logical};
+    patterns = vm(reshape(permute(cell2mat(permute(toint,[1 4 3 2])),[1 2 4 3]),size(toint{1},1),size(toint{1},2),[]));
+    without_comp = vm(patterns_logical);
+
+    hdim3 = size(patterns, 3);
+    wdim3 = size(without_comp, 3);
+    vec_size = length(index_rows);
+    
+    rand_patterns = zeros(vec_size, hdim3);
+    without_complement = zeros(vec_size, wdim3);
+    
+    for d = 1:hdim3
+        for i = 1:vec_size
+            r = index_rows(i);
+            c = index_cols(i);
+            rand_patterns(i, d) = patterns(r, c, d);
+        end
+    end
+    
+    for d = 1:wdim3
+        for i = 1:vec_size
+            r = index_rows(i);
+            c = index_cols(i);
+            without_complement(i, d) = without_comp(r, c, d);
+        end
+    end
+    rand_patterns = vm(rand_patterns);
+    without_complement = vm(without_complement);
+end
+
+function [disc_patterns, without_complement] = generatePoissonDiscCodesMatrix(nlocations_and_offset, pt_spacing, npts, npix_x, npix_y, sq_size)
+num_frames = nlocations_and_offset(1) + 1;
+patterns_logical = false(npix_x, npix_y, num_frames);
+
+for j=1:num_frames+1
+    [pts] = round(poissonDisc([npix_x, npix_y], pt_spacing, npts, 0));
+
+    pts(pts(:,1) < sq_size*2,:)=[];
+    pts(pts(:,2) < sq_size*2,:)=[];
+    pts(pts(:,2) > 1200 - sq_size*2,:)=[];
+    pts(pts(:,1) > 1200 - sq_size*2,:)=[];
+    
+    for i = 1:size(pts, 1)
+        patterns_logical(pts(i, 1)-sq_size:pts(i, 1)+sq_size, pts(i, 2)-sq_size:pts(i, 2)+sq_size, j) = 1;
+    end
+end
+
+% Interleave with complement in 3rd dimension, store as vectorized movie
+toint = {... % to interleave matrices in 3d, place them in a cell to then use the permute-cell2mat-permute-reshape method
+     patterns_logical ,...
+    ~patterns_logical};
+disc_patterns = vm(reshape(permute(cell2mat(permute(toint,[1 4 3 2])),[1 2 4 3]),size(toint{1},1),size(toint{1},2),[]));
+without_complement = vm(patterns_logical);
+end
+
+function [disc_patterns, without_complement] = generatePoissonDiscCodesVector(nlocations_and_offset, pt_spacing, npts, index_rows, index_cols, npix_x, npix_y)
+    num_frames = nlocations_and_offset(1) + 1;
+    
+    roi_rows = max(index_rows) - min(index_rows) + 1;
+    roi_cols = max(index_cols) - min(index_cols) + 1;
+    
+    patterns_logical = false(roi_rows, roi_cols, num_frames);
+
+    for j=1:num_frames+1
+        [pts] = round(poissonDisc([roi_rows, roi_cols], pt_spacing, npts, 0));
+
+        pts(pts(:,1) < 80,:)=[];
+        pts(pts(:,2) < 80,:)=[];
+        pts(pts(:,2) > 1120,:)=[];
+        pts(pts(:,1) > 1120,:)=[];
+
+        for i = 1:size(pts, 1)
+            patterns_logical(pts(i, 1)-40:pts(i, 1)+40, pts(i, 2)-40:pts(i, 2)+40, j) = 1;
+        end
+        
+%         figure();
+%         imagesc(patterns_logical(:,:,j));
+        
+    end
+
+    % Interleave with complement in 3rd dimension, store as vectorized movie
+    toint = {... % to interleave matrices in 3d, place them in a cell to then use the permute-cell2mat-permute-reshape method
+         patterns_logical ,...
+        ~patterns_logical};
+    patterns = vm(reshape(permute(cell2mat(permute(toint,[1 4 3 2])),[1 2 4 3]),size(toint{1},1),size(toint{1},2),[]));
+    without_comp = vm(patterns_logical);
+
+    hdim3 = size(patterns, 3);
+    wdim3 = size(without_comp, 3);
+    vec_size = length(index_rows);
+    
+    disc_patterns = zeros(vec_size, hdim3);
+    without_complement = zeros(vec_size, wdim3);
+    
+    for d = 1:hdim3
+        for i = 1:vec_size
+            r = index_rows(i) - min(index_rows) + 1;
+            c = index_cols(i) - min(index_cols) + 1;
+            disc_patterns(i, d) = patterns(r, c, d);
+        end
+    end
+    
+    for d = 1:wdim3
+        for i = 1:vec_size
+            r = index_rows(i) - min(index_rows) + 1;
+            c = index_cols(i) - min(index_cols) + 1;
+            without_complement(i, d) = without_comp(r, c, d);
+        end
+    end
+    disc_patterns = vm(disc_patterns);
+    without_complement = vm(without_complement);
 end

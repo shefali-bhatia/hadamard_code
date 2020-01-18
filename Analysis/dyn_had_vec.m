@@ -19,7 +19,7 @@
 % OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 % USE OR OTHER DEALINGS IN THE SOFTWARE.      
 %
-function [sv, uhad, uref, uu] = dyn_had_vec(obj_data, cal_data, ncomps, ydim, xdim)
+function [sv, uhad, uref, uu] = dyn_had_vec(obj_data, cal_data, ncomps)
 %dyn_had   Dynamic hadamard demodulation. 
 %   dyn_had(obj_data, cal_data, ncomps) analyzes a movie of a dynamic
 %   object illuminated with periodic interleaved patterned illumination
@@ -110,7 +110,7 @@ function [sv, uhad, uref, uu] = dyn_had_vec(obj_data, cal_data, ncomps, ydim, xd
 %         sv3d = repmat(sv(:, comp), 1, 1, movdim3);
         ui = evnfun(residual_mov.*sv3d,@sum,interlen)./evnfun((mov_uni(1,1,[1:end; 1:end])*0+1).*sv3d.^2,@sum,interlen); % interpolate
         
-        [dim1, dim2, dim3] = size(ui);
+        [~, ~, dim3] = size(ui);
 
         data = ui.data;
 
@@ -132,7 +132,7 @@ function [sv, uhad, uref, uu] = dyn_had_vec(obj_data, cal_data, ncomps, ydim, xd
    
         ui = vm(data);
         
-        uhad(:,comp) = abs(mean((ui(:,1:2:end) - ui(:,2:2:end)).*cal_data,2)); % hadamard demodulation
+        uhad(:,comp) = mean((ui(:,1:2:end) - ui(:,2:2:end)).*cal_data,2); % hadamard demodulation
         uref(:,comp) = mean(ui(:,:),2); % widefield reference
         residual_mov = residual_mov - ui(idx_map).*sv3d; % update residual
     end

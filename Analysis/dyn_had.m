@@ -108,7 +108,7 @@ function [sv, uhad, uref, uu] = dyn_had(obj_data, cal_data, ncomps)
         sv3d = reshape(sv([1:end; 1:end],comp),1,1,[]); % arrange time trace along dimension 3
 %         [movdim1, movdim2, movdim3] = size(mov_obj);
 %         sv3d = repmat(sv(:, comp), 1, 1, movdim3);
-        ui = abs(evnfun(residual_mov.*sv3d,@sum,interlen)./evnfun((mov_uni(1,1,[1:end; 1:end])*0+1).*sv3d.^2,@sum,interlen)); % interpolate
+        ui = evnfun(residual_mov.*sv3d,@sum,interlen)./evnfun((mov_uni(1,1,[1:end; 1:end])*0+1).*sv3d.^2,@sum,interlen); % interpolate
         
         [dim1, dim2, dim3] = size(ui);
 %         display ui without thresholding
@@ -116,6 +116,7 @@ function [sv, uhad, uref, uu] = dyn_had(obj_data, cal_data, ncomps)
 %         figure(9+comp);
 %         moviesc(vm(ui_reshaped));
 %         title(comp);
+
 
         data = ui.data;
         ui_reshaped = reshape(data, 1200, 1200, dim3);

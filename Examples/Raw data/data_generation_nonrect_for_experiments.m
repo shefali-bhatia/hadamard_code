@@ -6,32 +6,8 @@
 selftic = tic;
 
 % Dimensions of images taken during experiment
-dim1 = 1200;
-dim2 = 1200;
-
-img_name = 'randomPattern_wPhantom_lowC_3';
-name = strcat('SI/', img_name, '/Pos0');
-
-% LOAD IMAGES THAT WERE TAKEN DURING EXPERIMENT
-filename = fullfile(name, '*.tif');
-directory = dir(filename);
-
-% last image in the directory is not applicable
-image_patterns = zeros(dim1, dim2, length(directory)-1);
-for k=1:length(directory)-1
-    file = strcat(name, '/', directory(k).name);
-%     image = mat2gray(imread(file));
-%     image_patterns(:, :, k) = im2double(image);
-    image_patterns(:, :, k) = imread(file);
-end
-
-toint = {image_patterns(:, :, 1:64), image_patterns(:, :, 65:128)};
-image_patterns_interleaved = reshape(permute(cell2mat(permute(toint,[1 4 3 2])),[1 2 4 3]),size(toint{1},1),size(toint{1},2),[]);
-image_patterns = image_patterns_interleaved;
-
-figure(1);
-moviesc(vm(image_patterns));
-title('images taken using interpolated hadamard patterns');
+dim1 = 300;
+dim2 = 300;
 
 %%
 % LOAD INTERPOLATED HADAMARD PATTERNS
@@ -41,19 +17,19 @@ directory = dir(filename);
 
 % last image in the directory is not applicable
 interpolated_patterns = zeros(dim1, dim2, length(directory)-1);
-bin_interpolated_patterns = zeros(dim1, dim2, length(directory)-1);
+bin_interpolated_patterns = false(dim1, dim2, length(directory)-1);
 for k=1:length(directory)-1
     file = strcat('SI/homogenous_randomPattern_r20Pattern_power1_1/Pos0/', directory(k).name);
     
-%     I = imread(file);
+    I = imread(file);
 %     se = strel('disk', 15);
 %     filtered = imtophat(I, se);
 %     contrastAdjusted = imadjust(filtered);
 %     bw = imbinarize(contrastAdjusted);
 %     
-%     bin_interpolated_patterns(:, :, k) = imbinarize(I);
+    bin_interpolated_patterns(:, :, k) = imbinarize(I(701:1000, 601:900));
 %     pattern = mat2gray(imread(file));
-    interpolated_patterns(:, :, k) = imread(file);
+    interpolated_patterns(:, :, k) = I(701:1000, 601:900);
 
 end
 
@@ -72,7 +48,7 @@ interpolated_patterns = newInterpolated_pattern;
 % bin_interp_without_complement = bin_interpolated_patterns(:,:,1:2:end);
 
 interp_without_complement = interpolated_patterns(:, :, 1:64);
-% bin_interp_without_complement = bin_interpolated_patterns(:,:,1:64);
+bin_interp_without_complement = bin_interpolated_patterns(:,:,1:64);
 
 % toint = {interp_without_complement, interpolated_patterns(:, :, 65:128)};
 % interpolated_patterns_interleaved = reshape(permute(cell2mat(permute(toint,[1 4 3 2])),[1 2 4 3]),size(toint{1},1),size(toint{1},2),[]);
@@ -87,12 +63,57 @@ interp_without_complement = interpolated_patterns(:, :, 1:64);
 % title('interpolated hadamard patterns, interleaved with complements');
 
 figure(3);
-moviesc(vm(interp_without_complement));
-title('interpolated hadamard patterns without complements');
+moviesc(vm(bin_interp_without_complement));
+title('bin interpolated hadamard patterns without complements');
 
 % figure(4);
 % moviesc(vm(bin_interpolated_patterns));
 % title('interpolated hadamard patterns binary');
+
+%%
+img_name = 'randomPattern_woPhantom_4';
+name = strcat('SI/', img_name, '/Pos0');
+
+% LOAD IMAGES THAT WERE TAKEN DURING EXPERIMENT
+filename = fullfile(name, '*.tif');
+directory = dir(filename);
+% 
+% % last image in the directory is not applicable
+% image_patterns = zeros(dim1, dim2, length(directory)-1);
+% for k=1:length(directory)-1
+%     file = strcat(name, '/', directory(k).name);
+% %     image = mat2gray(imread(file));
+% %     image_patterns(:, :, k) = im2double(image);
+%     image_patterns(:, :, k) = imread(file);
+% end
+% 
+% toint = {image_patterns(:, :, 1:64), image_patterns(:, :, 65:128)};
+% image_patterns_interleaved = reshape(permute(cell2mat(permute(toint,[1 4 3 2])),[1 2 4 3]),size(toint{1},1),size(toint{1},2),[]);
+% image_patterns = image_patterns_interleaved;
+% 
+% figure(1);
+% moviesc(vm(image_patterns));
+% title('images taken using interpolated hadamard patterns');
+
+distanceImage = generateBaseImageGradientCircle(150,150,100, dim1, dim2);
+
+figure(1);
+d = vm(distanceImage);
+moviesc(d);
+title('base image')
+
+image_patterns = zeros(dim1, dim2, length(directory)-1);
+for k=1:length(directory)-1
+%     image = mat2gray(imread(file));
+%     image_patterns(:, :, k) = im2double(image);
+    image_patterns(:, :, k) = distanceImage .* bin_interpolated_patterns(:, :,  k);
+%     figure;imagesc(image_patterns(:,:,k));
+end
+
+figure(2);
+img = vm(image_patterns);
+moviesc(img);
+title('images with hadamard patterns applied')
 
 %%
 
@@ -115,8 +136,8 @@ title('interpolated hadamard patterns without complements');
 % PART 1 ------------> Run algorithm with fewer patterns
 
 r = 20;
-r_image_patterns = image_patterns(:, :, 1:r);
-r_interp_without_complement = interp_without_complement(:, :, 1:r/2);
+r_image_patterns = image_patterns(:, :, 1:(r+1));
+r_interp_without_complement = bin_interp_without_complement(:, :, 1:(r/2 + 1));
 
 reconstructedImage = reconstructImage(r_image_patterns, r_interp_without_complement);
 % reconstructedImage = abs(reconstructedImage);
@@ -255,6 +276,21 @@ function reconstructedImage = reconstructImage(image_patterns, without_complemen
 
     new_image_patterns = vm(image_patterns);
     without_complement = vm(without_complement);
+    
+    figure;
+    moviesc(new_image_patterns);
+    
+    figure;
+    moviesc(without_complement);
+    
+    new_image_patterns = new_image_patterns(:, :, 2:end);
+    without_complement = without_complement(:, :, 2:end);
+    
+    figure;
+    moviesc(new_image_patterns);
+    
+    figure;
+    moviesc(without_complement);
 
     % RECONSTRUCT IMAGE
     rootdir = fullfile('Examples/Raw data');
@@ -345,4 +381,15 @@ function hadamard_patterns_vec = vectorizeHadamardCodes(hadamard_patterns_matrix
             hadamard_patterns_vec(i, d) = hadamard_patterns_matrix(r, c, d);
         end
     end
+end
+
+function distanceImage = generateBaseImageGradientCircle(centerX,centerY,radius, dim1, dim2)
+    [columnsInImage, rowsInImage] = meshgrid(1:dim2, 1:dim1);
+
+    circlePixels = (rowsInImage - centerY).^2 + (columnsInImage - centerX).^2 <= radius.^2;
+    % Euclidean Distance Transform
+    distanceImage = bwdist(~circlePixels);
+    % Normalization
+    distanceImage = distanceImage / max(distanceImage(:));
+    distanceImage = double(distanceImage)/100;
 end
