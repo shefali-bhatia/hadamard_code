@@ -152,30 +152,30 @@ binning = [43 1]; % optional parameter binning to group projection elements
 [hadamard_patterns, without_complement] = generatePoissonDiscCodesVector(nlocations_and_offset, spacing, npts, rows, columns, npix_x, npix_y);
 
 % Display patterns as imagej stack style. note there are 2*m frames
-hadamard_patterns_matrix = zeros(dim1, dim2, size(hadamard_patterns, 2));
-without_complement_matrix = zeros(dim1, dim2, size(without_complement, 2));
-for d = 1:size(hadamard_patterns, 2)
-    for i = 1:length(rows)
-        hadamard_patterns_matrix(rows(i), columns(i), d) = hadamard_patterns.data(i, d);
-    end
-end
+% hadamard_patterns_matrix = zeros(dim1, dim2, size(hadamard_patterns, 2));
+% without_complement_matrix = zeros(dim1, dim2, size(without_complement, 2));
+% for d = 1:size(hadamard_patterns, 2)
+%     for i = 1:length(rows)
+%         hadamard_patterns_matrix(rows(i), columns(i), d) = hadamard_patterns.data(i, d);
+%     end
+% end
+% 
+% for d = 1:size(without_complement, 2)
+%     for i = 1:length(rows)
+%         without_complement_matrix(rows(i), columns(i), d) = without_complement.data(i, d);
+%     end
+% end
 
-for d = 1:size(without_complement, 2)
-    for i = 1:length(rows)
-        without_complement_matrix(rows(i), columns(i), d) = without_complement.data(i, d);
-    end
-end
 
+% figure(1)
+% moviesc(vm(hadamard_patterns_matrix))
+% title 'illumination patterns, second round'
+% 
+% figure(2)
+% moviesc(vm(without_complement_matrix))
+% title 'illumination patterns without interleaved complements, second round'
 
-figure(1)
-moviesc(vm(hadamard_patterns_matrix))
-title 'illumination patterns, second round'
-
-figure(2)
-moviesc(vm(without_complement_matrix))
-title 'illumination patterns without interleaved complements, second round'
-
-reps = 240;
+reps = 120;
 
 reconstructedImage2 = reconstructImageVectorized(roi_vec, hadamard_patterns, without_complement, reps);
 
@@ -597,29 +597,47 @@ function [disc_patterns, without_complement] = generatePoissonDiscCodesVector(nl
         ~patterns_logical};
     patterns = vm(reshape(permute(cell2mat(permute(toint,[1 4 3 2])),[1 2 4 3]),size(toint{1},1),size(toint{1},2),[]));
     without_comp = vm(patterns_logical);
+    
+    
+    % Display patterns
+    figure(1)
+    moviesc(patterns)
+    title 'illumination patterns, second round'
 
+    figure(2)
+    moviesc(without_comp)
+    title 'illumination patterns without interleaved complements, second round'
+    
+    
+    % Reshape 3d matrices to 2d matrices where each column is an image 
+    % frame vector
     hdim3 = size(patterns, 3);
     wdim3 = size(without_comp, 3);
     vec_size = length(index_rows);
     
-    disc_patterns = zeros(vec_size, hdim3);
-    without_complement = zeros(vec_size, wdim3);
+%     disc_patterns = zeros(vec_size, hdim3);
+%     without_complement = zeros(vec_size, wdim3);
     
-    for d = 1:hdim3
-        for i = 1:vec_size
-            r = index_rows(i) - min(index_rows) + 1;
-            c = index_cols(i) - min(index_cols) + 1;
-            disc_patterns(i, d) = patterns(r, c, d);
-        end
-    end
+    r = index_rows(:) - min(index_rows) + 1;
+    c = index_cols(:) - min(index_cols) + 1;
     
-    for d = 1:wdim3
-        for i = 1:vec_size
-            r = index_rows(i) - min(index_rows) + 1;
-            c = index_cols(i) - min(index_cols) + 1;
-            without_complement(i, d) = without_comp(r, c, d);
-        end
-    end
+    R = repmat(r, [hdim3, 1]);
+    C = repmat(c, [hdim3, 1]);
+    
+    K = kron((1:hdim3)', ones(numel(r), 1));
+    ind = sub2ind(size(patterns),R,C,K);
+    
+    disc_patterns = reshape(patterns.data(ind), vec_size, hdim3);
+    
+    
+    R2 = repmat(r, [wdim3, 1]);
+    C2 = repmat(c, [wdim3, 1]);
+    
+    K2 = kron((1:wdim3)', ones(numel(r), 1));
+    ind2 = sub2ind(size(patterns),R2, C2, K2);
+    
+    without_complement = reshape(without_comp.data(ind2), vec_size, wdim3);
+    
     disc_patterns = vm(disc_patterns);
     without_complement = vm(without_complement);
 end
