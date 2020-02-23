@@ -17,9 +17,9 @@ nlocations_and_offset = [19 5]; % [n offset]
 
 % optional parameter binning to group projection elements
 binning = [150 150];
-spacing = 136;
-npts = 150;
-sq_size = 66;
+spacing = 75;
+npts = 120;
+sq_size = 55;
 
 % image dimensions
 npix_x = 1200;
@@ -43,9 +43,9 @@ title 'illumination patterns without interleaved complements'
 
 centerX1 = 600;
 centerY1 = 600;
-centerX2 = 55;
-centerY2 = 22;
-radius = 600;
+centerX2 = 800;
+centerY2 = 600;
+radius = 400;
 
 centerX = npix_x/2;
 centerY = npix_y/2;
@@ -149,7 +149,7 @@ binning = [43 1]; % optional parameter binning to group projection elements
 % % rdim = r_range(2)-r_range(1)+1;
 % % cdim = c_range(2)-c_range(1)+1;
 
-[hadamard_patterns, without_complement] = generatePoissonDiscCodesVector(nlocations_and_offset, spacing, npts, rows, columns, npix_x, npix_y);
+[hadamard_patterns, without_complement] = generatePoissonDiscCodesVector(nlocations_and_offset, spacing, npts, rows, columns, sq_size);
 
 % Display patterns as imagej stack style. note there are 2*m frames
 % hadamard_patterns_matrix = zeros(dim1, dim2, size(hadamard_patterns, 2));
@@ -175,7 +175,7 @@ binning = [43 1]; % optional parameter binning to group projection elements
 % moviesc(vm(without_complement_matrix))
 % title 'illumination patterns without interleaved complements, second round'
 
-reps = 120;
+reps = 1;
 
 reconstructedImage2 = reconstructImageVectorized(roi_vec, hadamard_patterns, without_complement, reps);
 
@@ -202,6 +202,11 @@ end
 figure(204);
 moviesc(vm(final));
 title("FINAL IMAGE");
+
+final_with_tvd = reshape(applyTotalVariationDenoising(final), dim1, dim2);
+figure(205);
+moviesc(vm(final_with_tvd));
+title("FINAL IMAGE WITH TVD");
 
 
 function reconstructedImage = reconstructImage(distanceImage, hadamard_patterns, without_complement, reps)
@@ -270,7 +275,7 @@ function reconstructedImage = reconstructImage(distanceImage, hadamard_patterns,
         'uref', ...
         'uu', ...
         'ncomps')
-    % extract time-integrated images 
+    % extract time-integrated images  
     w50img = mean(vm(uref*sv',new_image_patterns.imsz)); % widefield image
     h50img = mean(vm(uhad*sv',new_image_patterns.imsz)); % hadamard image
 
@@ -400,7 +405,7 @@ function distanceImage = generateBaseImageGradientCircle(centerX,centerY,radius,
     distanceImage = bwdist(~circlePixels);
     % Normalization
     distanceImage = distanceImage / max(distanceImage(:));
-    distanceImage = double(distanceImage)/100;
+    distanceImage = double(distanceImage)/50;
 end
 
 function distanceImage = generate2BaseImageGradientCircles(centerX1,centerY1,centerX2, centerY2, radius, dim1, dim2)
@@ -548,10 +553,10 @@ patterns_logical = false(npix_x, npix_y, num_frames);
 for j=1:num_frames+1
     [pts] = round(poissonDisc([npix_x, npix_y], pt_spacing, npts, 0));
 
-    pts(pts(:,1) < sq_size*2,:)=[];
-    pts(pts(:,2) < sq_size*2,:)=[];
-    pts(pts(:,2) > 1200 - sq_size*2,:)=[];
-    pts(pts(:,1) > 1200 - sq_size*2,:)=[];
+    pts(pts(:,1) < sq_size+1,:)=[];
+    pts(pts(:,2) < sq_size+1,:)=[];
+    pts(pts(:,2) > 1200 - sq_size,:)=[];
+    pts(pts(:,1) > 1200 - sq_size,:)=[];
     
     for i = 1:size(pts, 1)
         patterns_logical(pts(i, 1)-sq_size:pts(i, 1)+sq_size, pts(i, 2)-sq_size:pts(i, 2)+sq_size, j) = 1;
@@ -566,25 +571,31 @@ disc_patterns = vm(reshape(permute(cell2mat(permute(toint,[1 4 3 2])),[1 2 4 3])
 without_complement = vm(patterns_logical);
 end
 
-function [disc_patterns, without_complement] = generatePoissonDiscCodesVector(nlocations_and_offset, pt_spacing, npts, index_rows, index_cols, npix_x, npix_y)
+function [disc_patterns, without_complement] = generatePoissonDiscCodesVector(nlocations_and_offset, pt_spacing, npts, index_rows, index_cols, sq_size)
     num_frames = nlocations_and_offset(1) + 1;
     
-    roi_rows = max(index_rows) - min(index_rows) + 1;
-    roi_cols = max(index_cols) - min(index_cols) + 1;
+    roi_rows = ceil((max(index_rows) - min(index_rows)) * 1.15);
+    roi_cols = ceil((max(index_cols) - min(index_cols)) * 1.15);
     
     patterns_logical = false(roi_rows, roi_cols, num_frames);
 
     for j=1:num_frames+1
         [pts] = round(poissonDisc([roi_rows, roi_cols], pt_spacing, npts, 0));
 
-        pts(pts(:,1) < 80,:)=[];
-        pts(pts(:,2) < 80,:)=[];
-        pts(pts(:,2) > 1120,:)=[];
-        pts(pts(:,1) > 1120,:)=[];
+        pts(pts(:,1) < sq_size+1,:)=[];
+        pts(pts(:,2) < sq_size+1,:)=[];
+        pts(pts(:,2) > roi_cols - sq_size,:)=[];
+        pts(pts(:,1) > roi_cols - sq_size,:)=[];
 
         for i = 1:size(pts, 1)
-            patterns_logical(pts(i, 1)-40:pts(i, 1)+40, pts(i, 2)-40:pts(i, 2)+40, j) = 1;
+            patterns_logical(pts(i, 1)-sq_size:pts(i, 1)+sq_size, pts(i, 2)-sq_size:pts(i, 2)+sq_size, j) = 1;
         end
+        
+        % code for poisson disc circle instead of square
+%         circlePts = (patterns_logical(:, :, j) - pts(:, 1)).^2 + (patterns_logical(:, :, j) - pts(:, 2)).^2 <= sq_size.^2;
+%         distanceImage = bwdist(~circlePts);
+%         patterns_logical(pts(i, 1), pts(i, 2), j) = 1;
+        
         
 %         figure();
 %         imagesc(patterns_logical(:,:,j));
@@ -640,4 +651,8 @@ function [disc_patterns, without_complement] = generatePoissonDiscCodesVector(nl
     
     disc_patterns = vm(disc_patterns);
     without_complement = vm(without_complement);
+end
+
+function img = applyTotalVariationDenoising(reconstructedImg)
+    img = SB_ATV(reconstructedImg, 0.5);
 end

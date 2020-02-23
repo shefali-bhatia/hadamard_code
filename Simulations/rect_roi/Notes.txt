@@ -1,0 +1,1 @@
+Notes:Orthogonal Locations = [27 6]- Singular values did not converge for reps=80

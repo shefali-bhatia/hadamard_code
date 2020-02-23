@@ -114,21 +114,21 @@ function [sv, uhad, uref, uu] = dyn_had_vec(obj_data, cal_data, ncomps)
 
         data = ui.data;
 
-        for i = 1:dim3
-            current_frame = data(:, :, i);
-            
-            if mean(current_frame(:)) > 0
-                current_frame = abs(current_frame);
-                thresh = graythresh(current_frame);
-                curr_frame_thresh = wthresh(current_frame, 's', thresh);
-                data(:, :, i) = curr_frame_thresh;
-            elseif mean(current_frame(:)) < 0
-                current_frame = abs(current_frame);
-                thresh = graythresh(current_frame);
-                curr_frame_thresh = wthresh(current_frame, 's', thresh);
-                data(:, :, i) = -1 .* curr_frame_thresh;
-            end
-        end
+%         for i = 1:dim3
+%             current_frame = data(:, :, i);
+%             
+%             if mean(current_frame(:)) > 0
+%                 current_frame = abs(current_frame);
+%                 thresh = graythresh(current_frame);
+%                 curr_frame_thresh = wthresh(current_frame, 's', thresh);
+%                 data(:, :, i) = curr_frame_thresh;
+%             elseif mean(current_frame(:)) < 0
+%                 current_frame = abs(current_frame);
+%                 thresh = graythresh(current_frame);
+%                 curr_frame_thresh = wthresh(current_frame, 's', thresh);
+%                 data(:, :, i) = -1 .* curr_frame_thresh;
+%             end
+%         end
    
         ui = vm(data);
         
