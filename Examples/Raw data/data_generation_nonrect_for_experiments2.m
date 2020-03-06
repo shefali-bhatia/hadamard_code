@@ -254,8 +254,6 @@ for i = 1:length(rows)
     final(rows(i), columns(i)) = reconstructedImage2(i);
 end
 
-% final(final < 0) = 0;
-
 figure(204);
 moviesc(vm(final));
 title("FINAL IMAGE");
