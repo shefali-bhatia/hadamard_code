@@ -6,20 +6,22 @@
 selftic = tic;
 
 % Dimensions of images taken during experiment
-dim1 = 1200;
-dim2 = 1200;
+dim1 = 600;
+dim2 = 600;
 
 %%
 % LOAD INTERPOLATED HADAMARD PATTERNS
 
-filename=fullfile('SI/homogenous_randomPattern_r20Pattern_power1_1/Pos0', '*.tif');
+% filename=fullfile('SI/homogenous_randomPattern_r20Pattern_power1_1/Pos0', '*.tif');
+filename=fullfile('SI/homogeneousSample_1/Pos0/', '*.tif');
 directory = dir(filename);
 
 % last image in the directory is not applicable
 interpolated_patterns = zeros(dim1, dim2, length(directory)-1);
 bin_interpolated_patterns = false(dim1, dim2, length(directory)-1);
 for k=1:length(directory)-1
-    file = strcat('SI/homogenous_randomPattern_r20Pattern_power1_1/Pos0/', directory(k).name);
+%     file = strcat('SI/homogenous_randomPattern_r20Pattern_power1_1/Pos0/', directory(k).name);
+    file = strcat('SI/homogeneousSample_1/Pos0/', directory(k).name);
     
     I = imread(file);
 %     se = strel('disk', 15);
@@ -73,7 +75,8 @@ moviesc(vm(interp_without_complement));
 title('interpolated hadamard patterns without complements');
 
 %%
-img_name = 'randomPattern_woPhantom_4';
+% img_name = '3.9umRedBeads_region2_1';
+img_name = '3.9umRedbeads_region2_withPhantom_lowconcentration_1';
 name = strcat('SI/', img_name, '/Pos0');
 
 % LOAD IMAGES THAT WERE TAKEN DURING EXPERIMENT
@@ -82,11 +85,22 @@ directory = dir(filename);
 
 % last image in the directory is not applicable
 image_patterns = zeros(dim1, dim2, length(directory)-1);
+snr = zeros(length(directory)-1, 1);
 for k=1:length(directory)-1
     file = strcat(name, '/', directory(k).name);
-%     image = mat2gray(imread(file));
-%     image_patterns(:, :, k) = im2double(image);
+    
+    % Normalize and filter out background of images
+    orig_img = imread(file);
+    norm_img = im2double(mat2gray(orig_img));
+    thresh = graythresh(norm_img);
+    filtered_img = wthresh(norm_img, 's', thresh);
+
     image_patterns(:, :, k) = imread(file);
+    
+%     We don't have a base image, so calculating snr properly isn't poss.
+%     signal = max(image_patterns(:, :, k));
+%     noise = std(image_patterns(:, :, k));
+%     snr(k) = 10 * log10(signal/noise);
 end
 
 toint = {image_patterns(:, :, 1:64), image_patterns(:, :, 65:128)};
@@ -199,7 +213,9 @@ figure(301);
 moviesc(vm(obj));
 title('Max Cluster');
 
-[rows, columns, roi_vec] = find(obj .* reconstructedImage);
+normalized_reconstruction = (reconstructedImage - min(reconstructedImage(:))) / (max(reconstructedImage(:) - min(reconstructedImage(:))));
+
+[rows, columns, roi_vec] = find(obj .* normalized_reconstruction);
 
 %%
 % PART 3 ------------> Run algorithm with more patterns using ROI
@@ -221,27 +237,27 @@ end
 img_patterns_roi_matrix = zeros(dim1, dim2, size(image_patterns_roi_array, 2));
 
 % view image & illumination patterns
-patterns = vm(image_patterns_roi_array);
-for d = 1:size(image_patterns_roi_array, 2)
-    for i = 1:length(rows)
-        img_patterns_roi_matrix(rows(i), columns(i), d) = patterns.data(i, d);
-    end
-end
+% patterns = vm(image_patterns_roi_array);
+% for d = 1:size(image_patterns_roi_array, 2)
+%     for i = 1:length(rows)
+%         img_patterns_roi_matrix(rows(i), columns(i), d) = patterns.data(i, d);
+%     end
+% end
+% 
+% figure(20)
+% moviesc(vm(img_patterns_roi_matrix))
+% title 'image patterns, second round'
 
-figure(20)
-moviesc(vm(img_patterns_roi_matrix))
-title 'image patterns, second round'
-
-without_complement_matrix = zeros(dim1, dim2, size(interp_without_complement_vec, 2));
-for d = 1:size(interp_without_complement_vec, 2)
-    for i = 1:length(rows)
-        without_complement_matrix(rows(i), columns(i), d) = interp_without_complement_vec(i, d);
-    end
-end
-
-figure(21)
-moviesc(vm(without_complement_matrix))
-title 'illumination patterns, second round'
+% without_complement_matrix = zeros(dim1, dim2, size(interp_without_complement_vec, 2));
+% for d = 1:size(interp_without_complement_vec, 2)
+%     for i = 1:length(rows)
+%         without_complement_matrix(rows(i), columns(i), d) = interp_without_complement_vec(i, d);
+%     end
+% end
+% 
+% figure(21)
+% moviesc(vm(without_complement_matrix))
+% title 'illumination patterns, second round'
 
 reconstructedImage2 = reconstructImageVectorized(image_patterns_roi_array, interp_without_complement_vec);
 

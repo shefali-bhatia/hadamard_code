@@ -119,7 +119,7 @@ function [sv, uhad, uref, uu] = dyn_had(obj_data, cal_data, ncomps)
 
 
         data = ui.data;
-        ui_reshaped = reshape(data, 1200, 1200, dim3);
+        ui_reshaped = reshape(data, 600, 600, dim3);
         figure(9+comp);
         moviesc(vm(ui_reshaped));
         title(comp);
