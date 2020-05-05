@@ -68,7 +68,7 @@ function [sv, uhad, uref, uu] = dyn_had(obj_data, cal_data, ncomps)
 %   2018 Vicente Parot
 %   Cohen Lab - Harvard University
 
-    
+    %%
 
     mov_obj = vm(obj_data,[size(obj_data,1) 1]); % recast input matrix as vectorized movie with image dimensions [npix 1] (otherwise would need to know image dimensions, or require object inputs)
     hlen = size(cal_data,2); % hadamard code length
@@ -82,8 +82,8 @@ function [sv, uhad, uref, uu] = dyn_had(obj_data, cal_data, ncomps)
     mov_obj_pairs = mov_obj.blnfun(@mean,2); % widefield movie from sum of pairs
     lf = mov_obj_pairs.imfilter(ker,'replicate'); % movie with low temporal frequency dynamics
     lf(lf<2) = 2; % avoid division errors
-%     nk = mov_obj_pairs(hlen/2+1:end-hlen/2).evnfun(@mean,hlen)./lf(hlen/2+1:end-hlen/2).evnfun(@mean,hlen); % extract normalized periodic component from movie
-%     nk = nk([hlen/2+1:end 1:hlen/2]); % rearrange frames in appropriate order
+    nk = evnfun(mov_obj_pairs,@mean,hlen)./evnfun(lf,@mean,hlen); % extract normalized periodic component from movie
+    nk = nk([hlen/2+1:end 1:hlen/2]); % rearrange frames in appropriate order
     % correct high-speed periodic intensity fluctuations. input movie must
     % have length of integer multiple of the pattern sequence. mov_uni has
     % half the frames of the input movie.
@@ -92,38 +92,195 @@ function [sv, uhad, uref, uu] = dyn_had(obj_data, cal_data, ncomps)
     mov_uni = mov_obj(:,:,1:lfdim3);
     % mov_uni should not have fluctuations that are periodic with the
     % period of the pattern sequence 
+    
+    %% Autocorrelation Processing
+    
+    %%
+    % Extract PSF function from frames
+    data = mov_uni(:, :, :).data;
 
+    reshaped_frames = reshape(data, 600, 600, []);
+    
+%     for i = 1:size(reshaped_frames, 3)
+    i = 1;
+    frame = reshaped_frames(:, :, i);
+%     frame_norm = (frame(:) - min(frame(:))) / max((frame(:) - min(frame(:))));
+%     frame_norm = reshape(frame_norm, 600, 600);
+    
+%     counts = imhist(frame, 100);
+%     
+%     T = otsuthresh(counts);
+%     thresh = imbinarize(frame, T*3.5);
+%     figure();subplot(1,2,1);imagesc(frame);
+%     subplot(1,2,2);imagesc(thresh);
+    
+%     frame_bin = imbinarize(frame, 0.1);
+%     
+%     figure; 
+%     moviesc(vm(frame_bin));
+%     title("binarized frame");
+   
+    [idx, ~] = kmeans(frame(:), 2, 'distance', 'cityblock', ...
+        'Replicates', 2, 'Start', 'cluster');
+
+%     [idx, ~] = dbscan(frame(:), 3, 5, 'Distance', 'squaredeuclidean');
+    
+    clustering = reshape(idx, 600, 600);
+    figure(300);
+    moviesc(vm(clustering));
+    title("clustering");
+    
+    B = bwboundaries(clustering, 'noholes');
+
+    numClusters = size(B, 1);
+    coord = zeros(numClusters, 2);
+    for j = 1:numClusters
+        coord(j, 1) = ceil(mean(B{j}(:, 1)));
+        coord(j, 2) = ceil(mean(B{j}(:, 2)));
+    end
+% end
+
+    r = 10;
+    
+%     [cx, cy] = ind2sub(size(thresh), find(thresh));
+%     [cyNum,cyVal] = hist(cy, round(numel(cy)/10));
+%     [~, Indtemp] = sort(cyNum,'descend');
+%     temp2 = cyVal(Indtemp(1:4));
+    
+    idx_temp = zeros(r*2 + 1, 2);
+    for i = 1:size(coord, 1)            %temp2
+        % get radius box around determined points
+        idx_temp(:, 1) = [coord(i, 1)-r:coord(i, 1)+r];
+        idx_temp(:, 2) = [coord(i, 2)-r:coord(i, 2)+r];
+%         idx_temp = find(cy>(temp2(i)-10) & cy<(temp2(i)+10));
+        H = zeros(size(idx_temp, 1), r*2 + 1);
+        for j = 1:size(idx_temp, 1)         % numel(idx_temp)
+            start = idx_temp(j, 1);
+            end_ = idx_temp(j, 2)+r;
+            if start > 600
+                start = 600;
+            end
+            if end_ > 600
+                end_ = 600;
+            end
+            % check where points are filled in
+            a = clustering(start, idx_temp(j, 2)-r:end_);
+            [~, temp] = max(a);
+            
+            start_y = idx_temp(j, 2)-r+(temp-r);
+            end_y = idx_temp(j, 2)+temp;
+            if start_y < 1
+                temp2 = clustering(start, 1:idx_temp(j, 2)+temp);
+                to_append = zeros(1 - start_y, 1);
+                  
+                H(j, :) = cat(2, temp2, to_append');
+            end
+            if end_y > 600
+                temp2 = clustering(start, start_y:600);
+                to_append = ones(end_y - 600, 1) * 600;
+                  
+                H(j, :) = cat(2, temp2, to_append');
+            end
+            if start_y > 1 && end_y < 600
+                H(j, :) = clustering(start, start_y:end_y);
+            end
+
+            
+%             a = thresh(cx(idx_temp(j)), cy(idx_temp(j))-r:cy(idx_temp(j))+r);
+%             [~,temp3]=max(a);
+%             H(j, :) = thresh(cx(idx_temp(j)),cy(idx_temp(j))-r+(temp3-r):cy(idx_temp(j))+r+(temp3-r));
+%             
+            % update psf
+            H(j, :) = (H(j,:) - min(H(j,:))) / max(H(j,:) - min(H(j,:)));
+        end
+        
+        if i == 1
+            H1 = H;
+        else    
+            H1 = cat(1, H1, H);
+        end
+    end
+    
+    H1(~any(~isnan(H1), 2),:)=[];
+    
+    xforH = repmat(-r:r, [size(H1, 1), 1]);
+    
+    [x,y] = prepareCurveData(xforH, H1);
+    
+    % second order gaussian fit (estimate scattering)
+    [fitobject, ~] = fit(x, y, 'gauss2');
+    
+    xPlot = linspace(x(1), x(end), 100);
+    figure;plot(xPlot, fitobject(xPlot));
+    
+    deconvFrame = deconvlucy(frame, fitobject(xPlot));
+    figure(301);moviesc(vm(deconvFrame));title("deconvoluted frame");
+    
+
+%%
+    corr = xcorr(data);
+    psf = fspecial('gaussian', 600, 10);
+%     psf = imgaussfilt3(reshaped_frames);
+%     estimated_nsr = 0.0001 / var(corr(:));
+%     temp = deconvwnr(reshaped_frames, psf, estimated_nsr);
+
+
+    [temp, est_psf] = deconvblind(reshaped_frames, psf);
+    
+    figure; moviesc(vm(est_psf)); title("estimated psf function");
+    figure; moviesc(vm(temp)); title("deconv img");
+    
+    
+    mov_uni_autocorr = reshape(temp, 360000, 1, []);
+    
+    % Iterative phase retrieval (Gerchberg-Saxton algorithm)
+%     input_intensity = mov_uni(:, :, :).data;
+    A = fftshift(ifft2(fftshift(data)));
+    [mdim1, mdim2, mdim3] = size(mov_uni_autocorr);
+    result = zeros(mdim1, mdim2, mdim3);
+    for i=1:25
+      B = abs(mov_uni_autocorr) .* exp(1i*angle(A));
+      C = fftshift(fft2(fftshift(B)));
+      D = abs(mov_uni(:, :, :).data) .* exp(1i*angle(C));
+      A = fftshift(ifft2(fftshift(D)));
+      result = abs(C);
+    end
+    
+    result_reshaped = reshape(result, 600, 600, []);
+    figure; moviesc(vm(result_reshaped)); 
+    title("img after phase retrieval alg");
+    
+    mov_uni = vm(result);
+    
     %% Direct full estimation
     idx_map = mod((1:mov_obj.frames)-1,interlen)+1; % maps the frame index of the calibration data into the movie
     selftic = tic; % mark time before pca
-    [uu, su, vu] = svds(mov_uni(:,:),ncomps); % mov_uni is a uniform movie previously estimated.
+    [uu, su, vu] = svds(mov_uni(:,:) - mean(mov_uni(:,:)),ncomps); % mov_uni is a uniform movie previously estimated.
     tpca = toc(selftic); % time after factorization
+    comp_uu = uu;
     uu = real(uu); % cast to avoid complex datatype from complex eigenvalues 
     sv = real(vu*su); % mov_uni(:,:) === uu*sv' where uu columns are orthonormal
     uhad = zeros([prod(mov_obj.imsz) ncomps]); % allocate memory for results
     uref = zeros([prod(mov_obj.imsz) ncomps]);
     residual_mov = mov_obj; % initialize residual as input movie
     disp 'estimating components ...'
+    
+    [coeff, score, latent] = pca(mov_uni(:,:), 'Algorithm', 'svd');
+    
+%     reshaped_frames = reshape(mov_uni(:, :, :).data, 600, 600, []);
+%     corr = xcorr(mov_uni(:, :, :).data);
+%     psf = fspecial('disk', 10);
+%     estimated_nsr = 0.0001 / var(corr(:));
+%     temp = deconvwnr(reshaped_frames, psf, estimated_nsr);
+    
+    pc = comp_uu * su;
     for comp = 1:ncomps % for each component of the USV decomposition
         sv3d = reshape(sv([1:end; 1:end],comp),1,1,[]); % arrange time trace along dimension 3
-%         [movdim1, movdim2, movdim3] = size(mov_obj);
-%         sv3d = repmat(sv(:, comp), 1, 1, movdim3);
         ui = evnfun(residual_mov.*sv3d,@sum,interlen)./evnfun((mov_uni(1,1,[1:end; 1:end])*0+1).*sv3d.^2,@sum,interlen); % interpolate
-        
+       
+          
         [dim1, dim2, dim3] = size(ui);
-%         display ui without thresholding
-%         ui_reshaped = reshape(ui.data, 44, 80, dim3);
-%         figure(9+comp);
-%         moviesc(vm(ui_reshaped));
-%         title(comp);
-
-
-        data = ui.data;
-        ui_reshaped = reshape(data, 600, 600, dim3);
-        figure(9+comp);
-        moviesc(vm(ui_reshaped));
-        title(comp);
-%         
+       
 %         figure(99+comp);
 %         imhist(ui_reshaped);
 %         title(comp);
@@ -148,12 +305,11 @@ function [sv, uhad, uref, uu] = dyn_had(obj_data, cal_data, ncomps)
 %             end
 %         end
         
-%         ui_reshaped = reshape(data, 1200, 1200, dim3);
-%         figure(59+comp);
-%         moviesc(vm(ui_reshaped));
-%         title(comp);
+        ui_reshaped = reshape(ui.data, 600, 600, dim3);
+        figure(9+comp);
+        moviesc(vm(ui_reshaped));
+        title(comp);
         
-        ui = vm(data);
         
         uhad(:,comp) = mean((ui(:,1:2:end) - ui(:,2:2:end)).*cal_data,2); % hadamard demodulation
         uref(:,comp) = mean(ui(:,:),2); % widefield reference

@@ -76,7 +76,7 @@ title('interpolated hadamard patterns without complements');
 
 %%
 % img_name = '3.9umRedBeads_region2_1';
-img_name = '3.9umRedbeads_region2_withPhantom_lowconcentration_1';
+img_name = '3.9umRedbeads_region2_1';
 name = strcat('SI/', img_name, '/Pos0');
 
 % LOAD IMAGES THAT WERE TAKEN DURING EXPERIMENT
@@ -89,13 +89,19 @@ snr = zeros(length(directory)-1, 1);
 for k=1:length(directory)-1
     file = strcat(name, '/', directory(k).name);
     
-    % Normalize and filter out background of images
     orig_img = imread(file);
-    norm_img = im2double(mat2gray(orig_img));
+    
+    % Add noise (for simulations)
+    new_img_with_gauss = imnoise(orig_img,'gaussian');
+    new_img_with_poiss = imnoise(orig_img, 'poisson');
+    new_img = new_img_with_gauss + new_img_with_poiss;
+    
+    % Normalize and filter out background of images
+    norm_img = im2double(mat2gray(new_img));
     thresh = graythresh(norm_img);
     filtered_img = wthresh(norm_img, 's', thresh);
 
-    image_patterns(:, :, k) = imread(file);
+    image_patterns(:, :, k) = filtered_img;
     
 %     We don't have a base image, so calculating snr properly isn't poss.
 %     signal = max(image_patterns(:, :, k));
@@ -321,7 +327,7 @@ function reconstructedImage = reconstructImage(image_patterns, without_complemen
     res_fpath = fullfile(rootdir,'results.mat');
 
     %%
-    ncomps = 5;
+    ncomps = 1;
     rng(0,'twister') % ensures multiple runs of eigs() will return repeatable results
     
     [sv, uhad, uref, uu] = dyn_had(new_image_patterns(:,:), without_complement(:,:), ncomps);
@@ -362,7 +368,7 @@ function reconstructedImage = reconstructImageVectorized(image_patterns, without
     res_fpath = fullfile(rootdir,'results.mat');
 
     %%
-    ncomps = 5;
+    ncomps = 1;
     rng(0,'twister') % ensures multiple runs of eigs() will return repeatable results
 
     [sv, uhad, uref, uu] = dyn_had_vec(new_image_patterns.data(:,:), without_complement.data(:,:), ncomps);
