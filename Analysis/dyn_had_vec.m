@@ -20,7 +20,8 @@
 % USE OR OTHER DEALINGS IN THE SOFTWARE.      
 %
 function [sv, uhad, uref, uu] = dyn_had_vec(obj_data, cal_data, ncomps)
-%dyn_had   Dynamic hadamard demodulation. 
+% dyn_had   Vectorized dynamic pattern demodulation, modified from 
+%           Cohen lab's original dynamic hadamard demodulation code. 
 %   dyn_had(obj_data, cal_data, ncomps) analyzes a movie of a dynamic
 %   object illuminated with periodic interleaved patterned illumination
 %   using hadamard codes. Then, it calculates a low rank estimate of the
@@ -87,9 +88,10 @@ function [sv, uhad, uref, uu] = dyn_had_vec(obj_data, cal_data, ncomps)
     % correct high-speed periodic intensity fluctuations. input movie must
     % have length of integer multiple of the pattern sequence. mov_uni has
     % half the frames of the input movie.
-    mov_uni = mov_obj_pairs./nk.repmat([1 1 mov_obj_pairs.frames/hlen]);
+    [~, ~, lfdim3] = size(lf);
+    mov_uni = mov_obj(:,:,1:lfdim3);
     % mov_uni should not have fluctuations that are periodic with the
-    % period of the pattern sequence 
+    % period of the pattern sequence
 
     %% Direct full estimation
     idx_map = mod((1:mov_obj.frames)-1,interlen)+1; % maps the frame index of the calibration data into the movie
@@ -104,32 +106,7 @@ function [sv, uhad, uref, uu] = dyn_had_vec(obj_data, cal_data, ncomps)
     disp 'estimating components ...'
     for comp = 1:ncomps % for each component of the USV decomposition
         sv3d = reshape(sv([1:end; 1:end],comp),1,1,[]); % arrange time trace along dimension 3
-%         [movdim1, movdim2, movdim3] = size(mov_obj);
-%         sv3d = repmat(sv(:, comp), 1, 1, movdim3);
         ui = evnfun(residual_mov.*sv3d,@sum,interlen)./evnfun((mov_uni(1,1,[1:end; 1:end])*0+1).*sv3d.^2,@sum,interlen); % interpolate
-        
-        [~, ~, dim3] = size(ui);
-
-        data = ui.data;
-
-%         for i = 1:dim3
-%             current_frame = data(:, :, i);
-%             
-%             if mean(current_frame(:)) > 0
-%                 current_frame = abs(current_frame);
-%                 thresh = graythresh(current_frame);
-%                 curr_frame_thresh = wthresh(current_frame, 's', thresh);
-%                 data(:, :, i) = curr_frame_thresh;
-%             elseif mean(current_frame(:)) < 0
-%                 current_frame = abs(current_frame);
-%                 thresh = graythresh(current_frame);
-%                 curr_frame_thresh = wthresh(current_frame, 's', thresh);
-%                 data(:, :, i) = -1 .* curr_frame_thresh;
-%             end
-%         end
-   
-        ui = vm(data);
-        
         uhad(:,comp) = mean((ui(:,1:2:end) - ui(:,2:2:end)).*cal_data,2); % hadamard demodulation
         uref(:,comp) = mean(ui(:,:),2); % widefield reference
         residual_mov = residual_mov - ui(idx_map).*sv3d; % update residual
