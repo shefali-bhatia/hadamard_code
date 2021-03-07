@@ -30,23 +30,27 @@ for i=1:size(interpolated_patterns, 3)
     s_new = repmat(s, [1,size(interpolated_patterns, 2)]);
     temp_pattern=interpolated_patterns(:, :, i) ./ s_new;
     newInterpolated_pattern(:, :, i) = im2double(mat2gray(temp_pattern));
-    disp(i)
+%     disp(i)
 end
 
 interpolated_patterns = newInterpolated_pattern;
 interp_without_complement = interpolated_patterns(:, :, 1:64);
 bin_interp_without_complement = bin_interpolated_patterns(:,:,1:64);
 
-figure(3);
-moviesc(vm(bin_interp_without_complement));
-title('bin interpolated hadamard patterns without complements');
+% figure(3);
+% moviesc(vm(bin_interp_without_complement));
+% title('bin interpolated hadamard patterns without complements');
 
-figure(4);
-moviesc(vm(interp_without_complement));
-title('interpolated hadamard patterns without complements');
+% figure(4);
+% moviesc(vm(interp_without_complement));
+% title('interpolated hadamard patterns without complements');
 
 %%
-img_name = '3.9umRedbeads_region2_withPhantom_lowconcentration_1';
+
+original = double(imread('SI/3.9umRedbeads_region2_1/Pos0/img_000000000_Default_000.tif'));
+figure;moviesc(vm(original));
+
+img_name = '3.9umRedbeads_region2_1';
 name = strcat('SI/', img_name, '/Pos0');
 
 % LOAD IMAGES THAT WERE TAKEN DURING EXPERIMENT
@@ -62,7 +66,7 @@ for k=1:length(directory)-1
     orig_img = imread(file);
     
     % Add noise (for simulations)
-%     new_img_with_gauss = imnoise(orig_img,'gaussian');
+    new_img_with_gauss = imnoise(orig_img,'gaussian');
 %     new_img_with_poiss = imnoise(orig_img, 'poisson');
 %     new_img = new_img_with_gauss + new_img_with_poiss;
     
@@ -71,16 +75,16 @@ for k=1:length(directory)-1
     thresh = graythresh(norm_img);
     filtered_img = wthresh(norm_img, 's', thresh);
 
-    image_patterns(:, :, k) = orig_img;
+    image_patterns(:, :, k) =  orig_img;
 end
 
 toint = {image_patterns(:, :, 1:64), image_patterns(:, :, 65:128)};
 image_patterns_interleaved = reshape(permute(cell2mat(permute(toint,[1 4 3 2])),[1 2 4 3]),size(toint{1},1),size(toint{1},2),[]);
 image_patterns = image_patterns_interleaved;
 
-figure(1);
-moviesc(vm(image_patterns));
-title('images taken using interpolated hadamard patterns');
+% figure(1);
+% moviesc(vm(image_patterns));
+% title('images taken using interpolated hadamard patterns');
 
 %% CLOSED LOOP PATTERN
 % PART 1 ------------> Run algorithm with fewer patterns
@@ -91,9 +95,9 @@ r_interp_without_complement = bin_interp_without_complement(:, :, 1:(r/2 + 1));
 
 reconstructedImage = reconstructImage(r_image_patterns, r_interp_without_complement);
 
-figure(200);
-moviesc(vm(reconstructedImage));
-title("Image Reconstructed using r patterns");
+% figure(200);
+% moviesc(vm(reconstructedImage));
+% title("Image Reconstructed using r patterns");
 
 % time taken to run first round of estimation
 time_to_roi = toc(selftic);
@@ -105,6 +109,9 @@ time_to_roi = toc(selftic);
 % time_to_roi_3_9umRedbeads_region2_wPhantom_lowcon_3_20_patterns = time_to_roi;
 % save('Simulations-nonrect_roi_exp/calc_times', 'time_to_roi_3_9umRedbeads_region2_wPhantom_lowcon_3_20_patterns', '-append');
 
+time_20 = time_to_roi;
+mse_20 = immse(original, reconstructedImage);
+
 %%
 % PART 2  ------------> Determine ROI using reconstructed image, kmeans
 
@@ -112,9 +119,9 @@ time_to_roi = toc(selftic);
   'distance', 'sqEuclidean', ...
   'Replicates', 2);
 clustering = reshape(clusterIndexes, dim1, dim2);
-figure(300);
-moviesc(vm(clustering));
-title('Kmeans Clustering');
+% figure(300);
+% moviesc(vm(clustering));
+% title('Kmeans Clustering');
 
 disp(clusterCenters)
 [~, indexOfMaxValue] = max(clusterCenters);
@@ -123,23 +130,15 @@ obj = clustering == indexOfMaxValue;
 props = regionprops(obj, 'FilledArea');
 props_arr = cell2mat(struct2cell(props)');
 max_prop = max(props_arr);
-i = 1;
-for j = 1:length(props)
-    % comparison # must be configured depending on image set
-    if props_arr(i)/max_prop < .000000000000001
-        props_arr(i) = [];
-    else
-        i = i + 1;
-    end
-end
 
-num_clusters = length(props_arr);
+props_arr_temp = props_arr/max_prop;
+% comparison # must be configured depending on image set
+num_clusters = sum(props_arr > .000000000000001);
 obj = bwareafilt(obj, num_clusters);
 
-
-figure(301);
-moviesc(vm(obj));
-title('Max Cluster');
+% figure(301);
+% moviesc(vm(obj));
+% title('Max Cluster');
 
 normalized_reconstruction = (reconstructedImage - min(reconstructedImage(:))) / (max(reconstructedImage(:) - min(reconstructedImage(:))));
 
@@ -175,14 +174,49 @@ for i = 1:length(rows)
     final(rows(i), columns(i)) = reconstructedImage2(i);
 end
 
-figure(204);
-moviesc(vm(final));
-title("FINAL IMAGE");
+
+final_norm = im2double(mat2gray(final));
+
+
+% figure(204);
+% moviesc(vm(final_norm));
+% title("FINAL IMAGE");
 
 final_with_tvd = reshape(applyTotalVariationDenoising(final), dim1, dim2);
-figure(205);
-moviesc(vm(final_with_tvd));
-title("FINAL IMAGE WITH TVD");
+final_with_tvd_norm = im2double(mat2gray(final_with_tvd));
+% figure(205);
+% moviesc(vm(final_with_tvd_norm));
+% title("FINAL IMAGE WITH TVD AND DECONVOLUTION");
+
+
+% % figure(206);
+% % filtered_background = im2double(mat2gray(im2double(mat2gray(image_patterns)) + final_with_tvd));
+% % moviesc(vm(filtered_background > 0.5));
+% % title("Final Reconstruction with TVD and Deconvolution");
+% % 
+% % 
+% % figure(206);
+% % filtered_background2 = im2double(mat2gray(im2double(mat2gray(image_patterns)) + final));
+% % moviesc(vm(filtered_background > 0.5));
+% % title("Final Reconstruction with only SVD");
+
+% temp = im2double(mat2gray(image_patterns)) + final_with_tvd_norm;
+% figure;moviesc(vm(wthresh(temp, 's', graythresh(temp))));
+% 
+% temp = im2double(mat2gray(image_patterns)) + final_norm;
+% figure;moviesc(vm(wthresh(temp, 's', graythresh(temp))));
+
+% figure;moviesc(vm(wthresh(final_with_tvd_norm, 's', graythresh(final_with_tvd_norm))));title("FINAL IMAGE WITH TVD AND DECONVOLUTION");
+
+reg = wthresh(final_norm, 's', graythresh(final_norm));
+wtvd = wthresh(final_with_tvd_norm, 's', graythresh(final_with_tvd_norm));
+for i=1:3
+    wtvd = wthresh(wtvd, 's', graythresh(wtvd));
+end
+
+figure;moviesc(vm(im2double(mat2gray(wthresh(reg, 's', graythresh(reg))))));title("Final Reconstruction with only SVD");
+
+figure;moviesc(vm(im2double(mat2gray(wtvd))));title("Final Reconstruction with TVD and Deconvolution");
 
 % total time
 total_time = toc(selftic);
@@ -206,11 +240,11 @@ function reconstructedImage = reconstructImage(image_patterns, without_complemen
     new_image_patterns = new_image_patterns(:, :, 2:end);
     without_complement = without_complement(:, :, 2:end);
     
-    figure;
-    moviesc(new_image_patterns);
-    
-    figure;
-    moviesc(without_complement);
+%     figure;
+%     moviesc(new_image_patterns);
+%     
+%     figure;
+%     moviesc(without_complement);
 
     % RECONSTRUCT IMAGE
     rootdir = fullfile('Examples/Raw data');

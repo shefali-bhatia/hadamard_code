@@ -74,108 +74,108 @@ function [sv, uhad, uref, uu] = dyn_had(obj_data, cal_data, ncomps)
     hlen = size(cal_data,2); % hadamard code length
     interlen = hlen*2; % interleaved code length, double of hadamard length
 
-    %% PSF Deconvolution
-    % extracts the psf from the first frame of the noisy movie and applies 
-    % the Lucy-Richardson method of deconvolution to each movie frame.
-    
-    % Extract PSF function from frames.
+%     %% PSF Deconvolution
+%     % extracts the psf from the first frame of the noisy movie and applies 
+%     % the Lucy-Richardson method of deconvolution to each movie frame.
+%     
+%     % Extract PSF function from frames.
     frame_dim = 600;
-    data = mov_obj(:, :, :).data;
-    reshaped_frames = reshape(data, frame_dim, frame_dim, []);
-    frame = reshaped_frames(:, :, 1);
-    
-    % Extract center coordinates of objects within frame.
-    [idx, ~] = kmeans(frame(:), 2, 'distance', 'cityblock', ...
-        'Replicates', 2, 'Start', 'cluster');
-    clustering = reshape(idx, frame_dim, frame_dim);
-    figure(300);
-    moviesc(vm(clustering));
-    title("clustering");
-    
-    B = bwboundaries(clustering, 'noholes');
-
-    numClusters = size(B, 1);
-    coord = zeros(numClusters, 2);
-    for j = 1:numClusters
-        coord(j, 1) = ceil(mean(B{j}(:, 1)));
-        coord(j, 2) = ceil(mean(B{j}(:, 2)));
-    end
-
-    r = 10;
-    
-    
-    idx_temp = zeros(r*2 + 1, 2);
-    for i = 1:size(coord, 1)
-        % get radius box around determined points
-        idx_temp(:, 1) = [coord(i, 1)-r:coord(i, 1)+r];
-        idx_temp(:, 2) = [coord(i, 2)-r:coord(i, 2)+r];
-        H = zeros(size(idx_temp, 1), r*2 + 1);
-        for j = 1:size(idx_temp, 1)
-            start = idx_temp(j, 1);
-            end_ = idx_temp(j, 2)+r;
-            if start > frame_dim
-                start = frame_dim;
-            end
-            if end_ > frame_dim
-                end_ = frame_dim;
-            end
-            % check where points are filled in
-            a = clustering(start, idx_temp(j, 2)-r:end_);
-            [~, temp] = max(a);
-            
-            start_y = idx_temp(j, 2)-r+(temp-r);
-            end_y = idx_temp(j, 2)+temp;
-            if start_y < 1
-                temp2 = clustering(start, 1:idx_temp(j, 2)+temp);
-                to_append = zeros(1 - start_y, 1);
-                  
-                H(j, :) = cat(2, temp2, to_append');
-            end
-            if end_y > 600
-                temp2 = clustering(start, start_y:frame_dim);
-                to_append = ones(end_y - frame_dim, 1) * frame_dim;
-                  
-                H(j, :) = cat(2, temp2, to_append');
-            end
-            if start_y > 1 && end_y < frame_dim
-                H(j, :) = clustering(start, start_y:end_y);
-            end
-            
-            % update psf
-            H(j, :) = (H(j,:) - min(H(j,:))) / max(H(j,:) - min(H(j,:)));
-        end
-        
-        if i == 1
-            H1 = H;
-        else    
-            H1 = cat(1, H1, H);
-        end
-    end
-    
-    H1(~any(~isnan(H1), 2),:)=[];
-    
-    xforH = repmat(-r:r, [size(H1, 1), 1]);
-    
-    [x,y] = prepareCurveData(xforH, H1);
-    
-    % second order gaussian fit (estimate scattering)
-    [fitobject, ~] = fit(x, y, 'gauss2');
-    
-    % plot extracted psf function
-    xPlot = linspace(x(1), x(end), 100);
-    figure; plot(xPlot, fitobject(xPlot));
-    
-    for i = 1:size(reshaped_frames, 3)
-        deconvFrame = deconvlucy(reshaped_frames(:, :, i), fitobject(xPlot));
-        reshaped_frames(:, :, i) = deconvFrame;
-    end
-    
-    mov_obj = reshape(reshaped_frames, frame_dim * frame_dim, 1, []);
-    mov_obj = vm(mov_obj);
-    
-    figure(201);
-    moviesc(vm(reshaped_frames));
-    title("after psf deconvolution");
+%     data = mov_obj(:, :, :).data;
+%     reshaped_frames = reshape(data, frame_dim, frame_dim, []);
+%     frame = reshaped_frames(:, :, 1);
+%     
+%     % Extract center coordinates of objects within frame.
+%     [idx, ~] = kmeans(frame(:), 2, 'distance', 'cityblock', ...
+%         'Replicates', 2, 'Start', 'cluster');
+%     clustering = reshape(idx, frame_dim, frame_dim);
+% %     figure(300);
+% %     moviesc(vm(clustering));
+% %     title("clustering");
+%     
+%     B = bwboundaries(clustering, 'noholes');
+% 
+%     numClusters = size(B, 1);
+%     coord = zeros(numClusters, 2);
+%     for j = 1:numClusters
+%         coord(j, 1) = ceil(mean(B{j}(:, 1)));
+%         coord(j, 2) = ceil(mean(B{j}(:, 2)));
+%     end
+% 
+%     r = 10;
+%     
+%     
+%     idx_temp = zeros(r*2 + 1, 2);
+%     for i = 1:size(coord, 1)
+%         % get radius box around determined points
+%         idx_temp(:, 1) = [coord(i, 1)-r:coord(i, 1)+r];
+%         idx_temp(:, 2) = [coord(i, 2)-r:coord(i, 2)+r];
+%         H = zeros(size(idx_temp, 1), r*2 + 1);
+%         for j = 1:size(idx_temp, 1)
+%             start = idx_temp(j, 1);
+%             end_ = idx_temp(j, 2)+r;
+%             if start > frame_dim
+%                 start = frame_dim;
+%             end
+%             if end_ > frame_dim
+%                 end_ = frame_dim;
+%             end
+%             % check where points are filled in
+%             a = clustering(start, idx_temp(j, 2)-r:end_);
+%             [~, temp] = max(a);
+%             
+%             start_y = idx_temp(j, 2)-r+(temp-r);
+%             end_y = idx_temp(j, 2)+temp;
+%             if start_y < 1
+%                 temp2 = clustering(start, 1:idx_temp(j, 2)+temp);
+%                 to_append = zeros(1 - start_y, 1);
+%                   
+%                 H(j, :) = cat(2, temp2, to_append');
+%             end
+%             if end_y > 600
+%                 temp2 = clustering(start, start_y:frame_dim);
+%                 to_append = ones(end_y - frame_dim, 1) * frame_dim;
+%                   
+%                 H(j, :) = cat(2, temp2, to_append');
+%             end
+%             if start_y > 1 && end_y < frame_dim
+%                 H(j, :) = clustering(start, start_y:end_y);
+%             end
+%             
+%             % update psf
+%             H(j, :) = (H(j,:) - min(H(j,:))) / max(H(j,:) - min(H(j,:)));
+%         end
+%         
+%         if i == 1
+%             H1 = H;
+%         else    
+%             H1 = cat(1, H1, H);
+%         end
+%     end
+%     
+%     H1(~any(~isnan(H1), 2),:)=[];
+%     
+%     xforH = repmat(-r:r, [size(H1, 1), 1]);
+%     
+%     [x,y] = prepareCurveData(xforH, H1);
+%     
+%     % second order gaussian fit (estimate scattering)
+%     [fitobject, ~] = fit(x, y, 'gauss2');
+%     
+%     % plot extracted psf function
+%     xPlot = linspace(x(1), x(end), 100);
+% %     figure; plot(xPlot, fitobject(xPlot));
+%     
+%     for i = 1:size(reshaped_frames, 3)
+%         deconvFrame = deconvlucy(reshaped_frames(:, :, i), fitobject(xPlot));
+%         reshaped_frames(:, :, i) = deconvFrame;
+%     end
+%     
+%     mov_obj = reshape(reshaped_frames, frame_dim * frame_dim, 1, []);
+%     mov_obj = vm(mov_obj);
+%     
+%     figure(201);
+%     moviesc(vm(reshaped_frames));
+%     title("after psf deconvolution");
     
     
     %% Filtered uniform movie
@@ -186,8 +186,8 @@ function [sv, uhad, uref, uu] = dyn_had(obj_data, cal_data, ncomps)
     mov_obj_pairs = mov_obj.blnfun(@mean,2); % widefield movie from sum of pairs
     lf = mov_obj_pairs.imfilter(ker,'replicate'); % movie with low temporal frequency dynamics
     lf(lf<2) = 2; % avoid division errors
-    nk = evnfun(mov_obj_pairs,@mean,hlen)./evnfun(lf,@mean,hlen); % extract normalized periodic component from movie
-    nk = nk([hlen/2+1:end 1:hlen/2]); % rearrange frames in appropriate order
+    % nk = evnfun(mov_obj_pairs,@mean,hlen)./evnfun(lf,@mean,hlen); % extract normalized periodic component from movie
+    % nk = nk([hlen/2+1:end 1:hlen/2]); % rearrange frames in appropriate order
     
     % input movie must have length of integer multiple of the pattern sequence. 
     % mov_uni has half the frames of the input movie.
@@ -211,11 +211,11 @@ function [sv, uhad, uref, uu] = dyn_had(obj_data, cal_data, ncomps)
         ui = evnfun(residual_mov.*sv3d,@sum,interlen)./evnfun((mov_uni(1,1,[1:end; 1:end])*0+1).*sv3d.^2,@sum,interlen); % interpolate
        
         % display each component of the decomposition
-        dim3 = size(ui, 3);
-        ui_reshaped = reshape(ui.data, frame_dim, frame_dim, dim3);
-        figure(9+comp);
-        moviesc(vm(ui_reshaped));
-        title(comp);
+%         dim3 = size(ui, 3);
+%         ui_reshaped = reshape(ui.data, frame_dim, frame_dim, dim3);
+%         figure(9+comp);
+%         moviesc(vm(ui_reshaped));
+%         title(comp);
        
         uhad(:,comp) = mean((ui(:,1:2:end) - ui(:,2:2:end)).*cal_data,2); % demodulation
         uref(:,comp) = mean(ui(:,:),2); % widefield reference

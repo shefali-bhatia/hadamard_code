@@ -68,13 +68,9 @@ function [sv, uhad, uref, uu] = dyn_had_vec(obj_data, cal_data, ncomps)
 % 
 %   2018 Vicente Parot
 %   Cohen Lab - Harvard University
-
-    
-
     mov_obj = vm(obj_data,[size(obj_data,1) 1]); % recast input matrix as vectorized movie with image dimensions [npix 1] (otherwise would need to know image dimensions, or require object inputs)
     hlen = size(cal_data,2); % hadamard code length
     interlen = hlen*2; % interleaved code length, double of hadamard length
-
     %% Filtered uniform movie
     % filter removes residual periodic illumination artifact from imperfect
     % illumination pattern projection
@@ -83,8 +79,8 @@ function [sv, uhad, uref, uu] = dyn_had_vec(obj_data, cal_data, ncomps)
     mov_obj_pairs = mov_obj.blnfun(@mean,2); % widefield movie from sum of pairs
     lf = mov_obj_pairs.imfilter(ker,'replicate'); % movie with low temporal frequency dynamics
     lf(lf<2) = 2; % avoid division errors
-    nk = evnfun(mov_obj_pairs,@mean,hlen)./evnfun(lf,@mean,hlen); % extract normalized periodic component from movie
-    nk = nk([hlen/2+1:end 1:hlen/2]); % rearrange frames in appropriate order
+%     nk = evnfun(mov_obj_pairs,@mean,hlen)./evnfun(lf,@mean,hlen); % extract normalized periodic component from movie
+%     nk = nk([hlen/2+1:end 1:hlen/2]); % rearrange frames in appropriate order
     % correct high-speed periodic intensity fluctuations. input movie must
     % have length of integer multiple of the pattern sequence. mov_uni has
     % half the frames of the input movie.
