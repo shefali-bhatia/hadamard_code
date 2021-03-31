@@ -19,7 +19,7 @@
 % OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 % USE OR OTHER DEALINGS IN THE SOFTWARE.      
 %
-function [sv, uhad, uref, uu] = dyn_had(obj_data, cal_data, ncomps)
+function [sv, uhad, uref, uu] = dyn_had(obj_data, cal_data, ncomps, mode)
 % dyn_had   Dynamic pattern demodulation, modified from Cohen lab's
 %           original dynamic hadamard demodulation code. 
 %   dyn_had(obj_data, cal_data, ncomps) analyzes a movie of a dynamic
@@ -197,30 +197,70 @@ function [sv, uhad, uref, uu] = dyn_had(obj_data, cal_data, ncomps)
     %% Direct full estimation
     idx_map = mod((1:mov_obj.frames)-1,interlen)+1; % maps the frame index of the calibration data into the movie
     selftic = tic; % mark time before pca
-    [uu, su, vu] = svds(mov_uni(:,:) - mean(mov_uni(:,:)),ncomps); % mov_uni is a uniform movie previously estimated.
-    tpca = toc(selftic); % time after factorization
-    uu = real(uu); % cast to avoid complex datatype from complex eigenvalues 
-    sv = real(vu*su); % mov_uni(:,:) === uu*sv' where uu columns are orthonormal
-    uhad = zeros([prod(mov_obj.imsz) ncomps]); % allocate memory for results
-    uref = zeros([prod(mov_obj.imsz) ncomps]);
-    residual_mov = mov_obj; % initialize residual as input movie
-    disp 'estimating components ...'
+    
+    %% NNMF Code
+    if mode == "nnmf"
+        [W, H] = nnmf(mov_uni(:,:) - mean(mov_uni(:,:)), ncomps); % mov_uni is a uniform movie previously estimated.
+        tpca = toc(selftic); % time after factorization
+        W = real(W); % cast to avoid complex datatype
+        H = real(H); % cast to avoid complex datatype
+        h = H';
 
-    for comp = 1:ncomps % for each component of the USV decomposition
-        sv3d = reshape(sv([1:end; 1:end],comp),1,1,[]); % arrange time trace along dimension 3
-        ui = evnfun(residual_mov.*sv3d,@sum,interlen)./evnfun((mov_uni(1,1,[1:end; 1:end])*0+1).*sv3d.^2,@sum,interlen); % interpolate
-       
-        % display each component of the decomposition
-%         dim3 = size(ui, 3);
-%         ui_reshaped = reshape(ui.data, frame_dim, frame_dim, dim3);
-%         figure(9+comp);
-%         moviesc(vm(ui_reshaped));
-%         title(comp);
-       
-        uhad(:,comp) = mean((ui(:,1:2:end) - ui(:,2:2:end)).*cal_data,2); % demodulation
-        uref(:,comp) = mean(ui(:,:),2); % widefield reference
-        residual_mov = residual_mov - ui(idx_map).*sv3d; % update residual
+        uhad = zeros([prod(mov_obj.imsz) ncomps]); % allocate memory for results
+        uref = zeros([prod(mov_obj.imsz) ncomps]);
+        residual_mov = mov_obj; % initialize residual as input movie
+
+        disp 'estimating components ...'
+
+        for comp = 1:ncomps % for each component of the WH decomposition
+            h3d = reshape(h([1:end; 1:end],comp),1,1,[]); % arrange time trace along dimension 3
+            wi = evnfun(residual_mov.*h3d,@sum,interlen)./evnfun((mov_uni(1,1,[1:end; 1:end])*0+1).*h3d.^2,@sum, interlen); % interpolate
+
+            % display each component of the decomposition
+            dim3 = size(wi, 3);
+            wi_reshaped = reshape(wi.data, frame_dim, frame_dim, dim3);
+            figure(9+comp);
+            moviesc(vm(wi_reshaped));
+            title(comp);
+
+            uhad(:,comp) = mean((wi(:,1:2:end) - wi(:,2:2:end)).*cal_data,2); % demodulation
+            uref(:,comp) = mean(wi(:,:),2); % widefield reference
+            residual_mov = residual_mov - wi(idx_map).*h3d; % update residual
+        end
+
+        sv = h;
+        uu = W;
     end
+    
+    %% PCA/SVD Code
+    if mode == "svd"
+        [uu, su, vu] = svds(mov_uni(:,:) - mean(mov_uni(:,:)),ncomps); % mov_uni is a uniform movie previously estimated.
+        tpca = toc(selftic); % time after factorization
+        uu = real(uu); % cast to avoid complex datatype from complex eigenvalues 
+        sv = real(vu*su); % mov_uni(:,:) === uu*sv' where uu columns are orthonormal
+        uhad = zeros([prod(mov_obj.imsz) ncomps]); % allocate memory for results
+        uref = zeros([prod(mov_obj.imsz) ncomps]);
+        residual_mov = mov_obj; % initialize residual as input movie
+        disp 'estimating components ...'
+
+        for comp = 1:ncomps % for each component of the USV decomposition
+            sv3d = reshape(sv([1:end; 1:end],comp),1,1,[]); % arrange time trace along dimension 3
+            ui = evnfun(residual_mov.*sv3d,@sum,interlen)./evnfun((mov_uni(1,1,[1:end; 1:end])*0+1).*sv3d.^2,@sum,interlen); % interpolate
+
+            % display each component of the decomposition
+    %         dim3 = size(ui, 3);
+    %         ui_reshaped = reshape(ui.data, frame_dim, frame_dim, dim3);
+    %         figure(9+comp);
+    %         moviesc(vm(ui_reshaped));
+    %         title(comp);
+
+            uhad(:,comp) = mean((ui(:,1:2:end) - ui(:,2:2:end)).*cal_data,2); % demodulation
+            uref(:,comp) = mean(ui(:,:),2); % widefield reference
+            residual_mov = residual_mov - ui(idx_map).*sv3d; % update residual
+        end
+    end
+    %%
+    
     t_all = toc(selftic); % total time
     t_est = t_all-tpca; % time for estimation only 
     disp(['estimation took ' num2str(t_est) ' s, total ' num2str(t_all) ' s']);

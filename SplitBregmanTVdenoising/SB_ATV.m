@@ -27,14 +27,14 @@ err = 1;k = 1;
 tol = 1e-3;
 lambda = 1;
 while err > tol
-    fprintf('it. %g ',k);
+%     fprintf('it. %g ',k);
     up = u;
     [u,~] = cgs(speye(n)+BtB, g-lambda*Bt*(b-d),1e-5,100); 
     Bub = B*u+b;
     d = max(abs(Bub)-mu/lambda,0).*sign(Bub);
     b = Bub-d;
     err = norm(up-u)/norm(u);
-    fprintf('err=%g \n',err);
+%     fprintf('err=%g \n',err);
     k = k+1;
 end
 fprintf('Stopped because norm(up-u)/norm(u) <= tol=%.1e\n',tol);

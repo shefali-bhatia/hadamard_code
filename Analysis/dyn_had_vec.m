@@ -92,21 +92,51 @@ function [sv, uhad, uref, uu] = dyn_had_vec(obj_data, cal_data, ncomps)
     %% Direct full estimation
     idx_map = mod((1:mov_obj.frames)-1,interlen)+1; % maps the frame index of the calibration data into the movie
     selftic = tic; % mark time before pca
-    [uu, su, vu] = svds(mov_uni(:,:),ncomps); % mov_uni is a uniform movie previously estimated.
+        
+    %% NNMF Code
+    [W, H] = nnmf(mov_uni(:,:) - mean(mov_uni(:,:)), ncomps); % mov_uni is a uniform movie previously estimated.
     tpca = toc(selftic); % time after factorization
-    uu = real(uu); % cast to avoid complex datatype from complex eigenvalues 
-    sv = real(vu*su); % mov_uni(:,:) === uu*sv' where uu columns are orthonormal
+    W = real(W); % cast to avoid complex datatype
+    H = real(H); % cast to avoid complex datatype
+    h = H';
+
     uhad = zeros([prod(mov_obj.imsz) ncomps]); % allocate memory for results
     uref = zeros([prod(mov_obj.imsz) ncomps]);
     residual_mov = mov_obj; % initialize residual as input movie
+
     disp 'estimating components ...'
-    for comp = 1:ncomps % for each component of the USV decomposition
-        sv3d = reshape(sv([1:end; 1:end],comp),1,1,[]); % arrange time trace along dimension 3
-        ui = evnfun(residual_mov.*sv3d,@sum,interlen)./evnfun((mov_uni(1,1,[1:end; 1:end])*0+1).*sv3d.^2,@sum,interlen); % interpolate
-        uhad(:,comp) = mean((ui(:,1:2:end) - ui(:,2:2:end)).*cal_data,2); % hadamard demodulation
-        uref(:,comp) = mean(ui(:,:),2); % widefield reference
-        residual_mov = residual_mov - ui(idx_map).*sv3d; % update residual
+
+    for comp = 1:ncomps % for each component of the WH decomposition
+        h3d = reshape(h([1:end; 1:end],comp),1,1,[]); % arrange time trace along dimension 3
+        wi = evnfun(residual_mov.*h3d,@sum,interlen)./evnfun((mov_uni(1,1,[1:end; 1:end])*0+1).*h3d.^2,@sum, interlen); % interpolate
+        uhad(:,comp) = mean((wi(:,1:2:end) - wi(:,2:2:end)).*cal_data,2); % demodulation
+        uref(:,comp) = mean(wi(:,:),2); % widefield reference
+        residual_mov = residual_mov - wi(idx_map).*h3d; % update residual
     end
+
+    sv = h;
+    uu = W;
+    
+    %% PCA/SVD Code
+%     [uu, su, vu] = svds(mov_uni(:,:),ncomps); % mov_uni is a uniform movie previously estimated.
+%     tpca = toc(selftic); % time after factorization
+%     uu = real(uu); % cast to avoid complex datatype from complex eigenvalues 
+%     sv = real(vu*su); % mov_uni(:,:) === uu*sv' where uu columns are orthonormal
+%     uhad = zeros([prod(mov_obj.imsz) ncomps]); % allocate memory for results
+%     uref = zeros([prod(mov_obj.imsz) ncomps]);
+%     residual_mov = mov_obj; % initialize residual as input movie
+% 
+%     disp 'estimating components ...'
+% 
+%     for comp = 1:ncomps % for each component of the USV decomposition
+%         sv3d = reshape(sv([1:end; 1:end],comp),1,1,[]); % arrange time trace along dimension 3
+%         ui = evnfun(residual_mov.*sv3d,@sum,interlen)./evnfun((mov_uni(1,1,[1:end; 1:end])*0+1).*sv3d.^2,@sum,interlen); % interpolate
+%         uhad(:,comp) = mean((ui(:,1:2:end) - ui(:,2:2:end)).*cal_data,2); % hadamard demodulation
+%         uref(:,comp) = mean(ui(:,:),2); % widefield reference
+%         residual_mov = residual_mov - ui(idx_map).*sv3d; % update residual
+%     end
+    %%
+    
     t_all = toc(selftic); % total time
     t_est = t_all-tpca; % time for estimation only 
     disp(['estimation took ' num2str(t_est) ' s, total ' num2str(t_all) ' s']);
